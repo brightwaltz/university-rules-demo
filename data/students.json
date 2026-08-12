@@ -1,0 +1,35 @@
+[
+  {
+    "student_id": "S001",
+    "name": "山田太郎",
+    "faculty": "工学部",
+    "grade": 3,
+    "earned_credits": 92,
+    "current_registered_credits": 36,
+    "required_a": true,
+    "required_b": false,
+    "registration_completed": false
+  },
+  {
+    "student_id": "S002",
+    "name": "鈴木花子",
+    "faculty": "工学部",
+    "grade": 4,
+    "earned_credits": 118,
+    "current_registered_credits": 20,
+    "required_a": true,
+    "required_b": true,
+    "registration_completed": true
+  },
+  {
+    "student_id": "S003",
+    "name": "佐藤次郎",
+    "faculty": "工学部",
+    "grade": 4,
+    "earned_credits": 126,
+    "current_registered_credits": 12,
+    "required_a": true,
+    "required_b": true,
+    "registration_completed": false
+  }
+]
