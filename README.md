@@ -64,6 +64,14 @@ streamlit run app.py
 
 起動後、通常はブラウザで `http://localhost:8501` が開きます。
 
+## 公開デモ
+
+GitHub Pages向けの静的デモを `docs/index.html` に収録しています。Pythonサーバーを実行できないGitHub Pages上でも、学生選択、通知、質問判定、判定根拠、ルールCRUDをブラウザ内の決定論的JavaScriptで実行します。
+
+- Streamlit版のルール変更は `data/rules.yaml` に保存されます。
+- GitHub Pages版のルール変更は閲覧中のブラウザの `localStorage` に保存されます。
+- Pages版も外部APIやLLMを使用しません。
+
 ## テスト
 
 仮想環境を有効にした状態で実行します。
