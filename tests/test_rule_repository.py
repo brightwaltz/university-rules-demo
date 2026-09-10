@@ -20,6 +20,11 @@ def editable_rules_path(tmp_path: Path) -> Path:
     return path
 
 
+@pytest.fixture
+def repository(editable_rules_path, graph) -> RuleRepository:
+    return RuleRepository(editable_rules_path, graph)
+
+
 def personalized_payload(rule_id: str = "RULE-NOTICE-001") -> dict:
     return {
         "rule_id": rule_id,
@@ -30,14 +35,13 @@ def personalized_payload(rule_id: str = "RULE-NOTICE-001") -> dict:
         "message": "卒業準備を確認してください。",
         "level": "warning",
         "conditions": [
-            {"field": "grade", "operator": ">=", "value": 4},
-            {"field": "registration_completed", "operator": "==", "value": True},
+            {"term": "urd:yearOfStudy", "operator": ">=", "value": 4},
+            {"term": "schema:actionStatus", "operator": "==", "value": True},
         ],
     }
 
 
-def test_rule_repository_create_update_delete(editable_rules_path):
-    repository = RuleRepository(editable_rules_path)
+def test_rule_repository_create_update_delete(repository):
     original_count = len(repository.list_rules())
 
     created = repository.create(personalized_payload())
@@ -54,8 +58,7 @@ def test_rule_repository_create_update_delete(editable_rules_path):
     assert len(repository.list_rules()) == original_count
 
 
-def test_duplicate_rule_id_is_rejected_without_changing_file(editable_rules_path):
-    repository = RuleRepository(editable_rules_path)
+def test_duplicate_rule_id_is_rejected_without_changing_file(repository, editable_rules_path):
     before = editable_rules_path.read_text(encoding="utf-8")
     payload = personalized_payload("RULE-CREDIT-001")
 
@@ -65,10 +68,11 @@ def test_duplicate_rule_id_is_rejected_without_changing_file(editable_rules_path
     assert editable_rules_path.read_text(encoding="utf-8") == before
 
 
-def test_personalized_rule_generates_notification(editable_rules_path, eligible_student):
-    repository = RuleRepository(editable_rules_path)
+def test_personalized_rule_generates_notification(
+    repository, editable_rules_path, graph, eligible_student
+):
     repository.create(personalized_payload())
-    notices = NotificationService(RuleEngine(editable_rules_path)).generate(eligible_student)
+    notices = NotificationService(RuleEngine(editable_rules_path, graph)).generate(eligible_student)
 
     notice = next(item for item in notices if item.notification_id == "NOTICE-RULE-NOTICE-001")
     assert notice.message == "卒業準備を確認してください。"
@@ -76,13 +80,84 @@ def test_personalized_rule_generates_notification(editable_rules_path, eligible_
 
 
 def test_deleting_required_rule_returns_unknown_instead_of_crashing(
-    editable_rules_path, eligible_student
+    repository, editable_rules_path, graph, eligible_student
 ):
-    repository = RuleRepository(editable_rules_path)
     repository.delete("RULE-CREDIT-001")
-    engine = RuleEngine(editable_rules_path)
+    engine = RuleEngine(editable_rules_path, graph)
     service = AnswerService(engine, RuleBasedIntentDetector())
 
     _, result = service.answer("あと何単位履修できますか？", eligible_student)
     assert result.status == DecisionStatus.UNKNOWN
     assert "判定できません" in result.message
+
+
+def test_course_outside_the_graph_is_rejected(repository):
+    repository.delete("RULE-GRAD-002")
+    payload = {
+        "rule_id": "RULE-GRAD-002",
+        "rule_type": "graduation_required_courses",
+        "title": "卒業必修科目",
+        "source": "2026年度学則 第32条第2項",
+        "subject": "urdi:program/engineering-2026",
+        "legislation": "urdi:legislation/gakusoku-2026/art32-2",
+        "required_courses": ["REQ-A", "NOT-IN-GRAPH"],
+    }
+    with pytest.raises(RuleValidationError, match="存在しない科目コード"):
+        repository.create(payload)
+
+
+def test_subject_class_must_match_the_ontology(repository):
+    repository.delete("RULE-GRAD-001")
+    payload = {
+        "rule_id": "RULE-GRAD-001",
+        "rule_type": "graduation_credit_requirement",
+        "title": "卒業必要単位数",
+        "source": "2026年度学則 第32条第1項",
+        # 科目ノードは schema:EducationalOccupationalProgram ではない。
+        "subject": "urdi:course/REQ-A",
+        "legislation": "urdi:legislation/gakusoku-2026/art32-1",
+        "required_credits": 124,
+    }
+    with pytest.raises(RuleValidationError, match="対象は schema:EducationalOccupationalProgram"):
+        repository.create(payload)
+
+
+def test_unknown_legislation_is_rejected(repository):
+    repository.delete("RULE-CREDIT-001")
+    payload = {
+        "rule_id": "RULE-CREDIT-001",
+        "rule_type": "annual_credit_limit",
+        "title": "年間履修上限",
+        "source": "2026年度履修規程 第12条",
+        "subject": "urdi:program/engineering-2026",
+        "legislation": "urdi:legislation/does-not-exist/art1",
+        "max_credits": 48,
+    }
+    with pytest.raises(RuleValidationError, match="根拠条文がナレッジグラフにありません"):
+        repository.create(payload)
+
+
+def test_course_condition_uses_contains_operator(repository, editable_rules_path, graph):
+    payload = personalized_payload("RULE-NOTICE-002")
+    payload["conditions"] = [
+        {"term": "ccso:hasCompleted", "operator": "not_contains", "value": "REQ-B"}
+    ]
+    payload["message"] = "必修Bが未修得です。"
+    repository.create(payload)
+
+    engine = RuleEngine(editable_rules_path, graph)
+    students = {student.student_id: student for student in graph.students()}
+
+    matched = engine.evaluate_personalized_notifications(students["S001"])
+    assert [rule.rule_id for rule, _ in matched] == ["RULE-NOTICE-002"]
+
+    assert engine.evaluate_personalized_notifications(students["S002"]) == []
+
+
+def test_course_condition_rejects_scalar_operator(repository):
+    payload = personalized_payload("RULE-NOTICE-003")
+    payload["conditions"] = [
+        {"term": "ccso:hasCompleted", "operator": ">=", "value": "REQ-B"}
+    ]
+    with pytest.raises(RuleValidationError, match="contains または not_contains"):
+        repository.create(payload)
