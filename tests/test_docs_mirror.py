@@ -23,6 +23,7 @@ from src.notification import NotificationService
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs" / "index.html"
+GRAPH_PAGE = ROOT / "docs" / "graph.html"
 HARNESS = ROOT / "tests" / "js" / "check_mirror.mjs"
 
 QUESTIONS = [
@@ -49,11 +50,13 @@ def _sync_module():
 def test_embedded_data_is_in_sync_with_the_python_sources():
     """`python scripts/sync_docs_data.py` を流しても変化しないこと。"""
     sync = _sync_module()
-    html = DOCS.read_text(encoding="utf-8")
-    assert sync.render(html) == html, (
-        "docs/index.html の埋め込みデータが古くなっています。"
-        "`python scripts/sync_docs_data.py` を実行してください。"
-    )
+    for filename, builders in sync.PAGES.items():
+        path = ROOT / "docs" / filename
+        html = path.read_text(encoding="utf-8")
+        assert sync.render(html, builders) == html, (
+            f"docs/{filename} の埋め込みデータが古くなっています。"
+            "`python scripts/sync_docs_data.py` を実行してください。"
+        )
 
 
 def test_embedded_graph_equals_the_data_file():
@@ -115,6 +118,92 @@ def test_javascript_notifications_match_the_notification_service(javascript_resu
             for notice in service.generate(student)
         ]
         assert javascript_results[student.student_id]["notifications"] == expected, student.student_id
+
+
+@pytest.fixture(scope="module")
+def graph_results():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js が無いため グラフ画面の照合をスキップします。")
+    completed = subprocess.run(
+        [node, str(ROOT / "tests" / "js" / "check_graph_mirror.mjs"), str(GRAPH_PAGE)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if completed.returncode != 0:
+        pytest.fail(f"docs/graph.html のJavaScript実行に失敗しました:\n{completed.stderr}")
+    return json.loads(completed.stdout)
+
+
+def test_graph_page_derives_the_same_edges(graph_results):
+    from src.ontology import GRAPH
+
+    assert graph_results["problems"] == []
+    assert graph_results["derived_edge_ids"] == sorted(e.id for e in GRAPH.derived_edges)
+
+
+def test_graph_page_derives_the_same_crosswalk(graph_results):
+    from src.ontology import GRAPH
+
+    assert graph_results["crosswalk"] == GRAPH.crosswalk()
+
+
+def test_graph_page_walks_hypernodes_the_same_way(graph_results):
+    from src.ontology import GRAPH
+
+    assert graph_results["roots"] == [h.id for h in GRAPH.hypernodes if not GRAPH.parents_of(h.id)]
+    for hypernode in GRAPH.hypernodes:
+        assert graph_results["descendants"][hypernode.id] == sorted(
+            GRAPH.descendants(hypernode.id)
+        ), hypernode.id
+
+
+def test_graph_page_yaml_export_can_be_loaded_back(graph_results, tmp_path):
+    """画面で編集した結果を、そのままリポジトリへ戻せること。"""
+    from src.graph_document import GraphDocument
+    from src.ontology import GRAPH
+
+    path = tmp_path / "exported.yaml"
+    path.write_text(graph_results["yaml"], encoding="utf-8")
+
+    reloaded = GraphDocument(path)
+    assert [n.id for n in reloaded.nodes] == [n.id for n in GRAPH.nodes]
+    assert [h.id for h in reloaded.hypernodes] == [h.id for h in GRAPH.hypernodes]
+    assert [e.id for e in reloaded.explicit_edges] == [e.id for e in GRAPH.explicit_edges]
+    assert reloaded.crosswalk() == GRAPH.crosswalk()
+    assert reloaded.to_dict()["nodes"] == GRAPH.to_dict()["nodes"]
+
+
+def test_graph_page_renders_without_errors():
+    """最小限のDOMスタブの上で描画と主要操作を通す（ブラウザは起動しない）。
+
+    見た目までは確かめられないが、読み込み・選択・折りたたみ・書き出しで
+    例外が出ないことと、SVGに要素が積まれることは機械的に確認できる。
+    """
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js が無いため グラフ画面の描画確認をスキップします。")
+    completed = subprocess.run(
+        [node, str(ROOT / "tests" / "js" / "check_graph_render.mjs"), str(GRAPH_PAGE)],
+        capture_output=True,
+        text=True,
+        timeout=90,
+    )
+    assert completed.returncode == 0, completed.stderr
+    steps = json.loads(completed.stdout)
+    failed = [step for step in steps if not step["ok"]]
+    assert not failed, "\n".join(f"{s['step']}: {s['detail']}" for s in failed)
+    assert int(steps[0]["detail"]) > 300, "SVGに要素が描かれていません"
+    assert steps[-1]["detail"] == "[]", "描画後の検証でエラーが出ています"
+
+
+def test_pages_share_the_site_stylesheet():
+    for filename in ("index.html", "graph.html"):
+        html = (ROOT / "docs" / filename).read_text(encoding="utf-8")
+        assert 'href="assets/site.css"' in html, filename
+        assert "site-nav" in html, filename
+        assert "<style>" not in html, f"{filename} にインラインCSSが残っています"
 
 
 def test_python_version_is_recent_enough():

@@ -1,0 +1,721 @@
+# =============================================================================
+# 大学 Rules as Code — オントロジーグラフ文書
+# =============================================================================
+#
+# このファイルは、本システムが使うオントロジーの構造そのものである。
+# 表示用の複製ではなく、src/ontology.py がここから語彙定義を読み込む。
+# ここを編集すると、判定・検証・画面表示のすべてに反映される。
+#
+# 形式（グラフ文書）
+# -----------------------------------------------------------------------------
+#   nodes       … 単一の対象。concept（概念）/ term（語彙の用語）/
+#                 rule-type（ルール種別）/ vocabulary（語彙そのもの）
+#   edges       … node と node、node と hypernode を結ぶ有向の関係
+#   hypernodes  … メンバーを持つノード。ノードでありながら部分グラフを内包する。
+#                 用途は2つ。
+#                   (1) 階層構造   members に node / hypernode を入れて入れ子にする
+#                   (2) メタ知識   about に対象を列挙し、その集合についての言明を持つ
+#                 hypernode 自身も edge の端点になれる。
+#
+# 編集の約束
+# -----------------------------------------------------------------------------
+#   * id は安定させる。名称変更は label を変える。id を変えると参照が壊れる。
+#   * 1つの事実は1箇所にだけ書く。導出できる関係は edges に書かない
+#     （rule-type の rule_terms / evaluated_terms からは edge が自動生成される）。
+#   * kind は下の enum から選ぶ。増やすときは src/graph_document.py も更新する。
+#   * 参照の整合性・入れ子の循環は tests/test_graph_document.py が検査する。
+#
+# 画面
+# -----------------------------------------------------------------------------
+#   docs/graph.html で可視化・編集できる。編集結果はこの形式で書き出せる。
+# =============================================================================
+
+meta:
+  title: 大学 Rules as Code オントロジーグラフ
+  description: 学生・科目・規程・判定を表す語彙と、その選定理由を1つのグラフとして持つ。
+  version: 1
+
+# --- 語彙レジストリ ---------------------------------------------------------
+namespaces:
+  - prefix: schema
+    iri: https://schema.org/
+    label: schema.org
+    version: "30.0"
+    role: base
+    note: 本デモの基底語彙。科目カタログ・課程・規程・通知の語彙を持つ。
+  - prefix: ccso
+    iri: https://w3id.org/ccso/ccso#
+    label: CCSO (Curriculum Course Syllabus Ontology)
+    version: "0.7"
+    role: complement
+    note: 学籍側の語彙を補う。CCSO自身が schema.org の用語を再利用している。
+  - prefix: urd
+    iri: https://brightwaltz.github.io/university-rules-demo/ns#
+    label: ローカル拡張（語彙）
+    role: local
+    note: schema.org にも CCSO にも無い概念だけをここに定義する。
+  - prefix: urdi
+    iri: https://brightwaltz.github.io/university-rules-demo/id/
+    label: ローカル拡張（インスタンス）
+    role: local
+    note: 学生・科目・条文などのノードのIRI。語彙とデータを接頭辞で分ける。
+  - prefix: oloud
+    iri: http://lod.nik.uni-obuda.hu/oloud/oloud#
+    label: OLOUD
+    role: reference
+    note: 参照のみ。AIISO/FOAF/Dublin Core 系で schema.org は使わない。
+  - prefix: skos
+    iri: http://www.w3.org/2004/02/skos/core#
+    label: SKOS
+    role: support
+    note: closeMatch の表明に使う。
+  - prefix: rdfs
+    iri: http://www.w3.org/2000/01/rdf-schema#
+    label: RDFS
+    role: support
+  - prefix: xsd
+    iri: http://www.w3.org/2001/XMLSchema#
+    label: XML Schema Datatypes
+    role: support
+
+# --- 階層とメタ知識 ---------------------------------------------------------
+hypernodes:
+  # 語彙レイヤ（入れ子の親）
+  - id: layer/vocabulary
+    kind: layer
+    label: 語彙レイヤ
+    note: どの語彙から用語を採ったかによる階層。
+    members: [layer/schema-org, layer/ccso, layer/local, layer/reference]
+
+  - id: layer/schema-org
+    kind: layer
+    label: schema.org 層
+    note: 第1優先。適切な用語があれば必ずここから採る。
+    members:
+      - term/schema:CollegeOrUniversity
+      - term/schema:EducationalOrganization
+      - term/schema:EducationalOccupationalProgram
+      - term/schema:Course
+      - term/schema:Person
+      - term/schema:EducationalOccupationalCredential
+      - term/schema:Legislation
+      - term/schema:Message
+      - term/schema:RegisterAction
+      - term/schema:actionStatus
+      - term/schema:applicationDeadline
+      - term/schema:numberOfCredits
+      - term/schema:courseCode
+      - term/schema:coursePrerequisites
+      - term/schema:programPrerequisites
+      - term/schema:identifier
+      - term/schema:name
+      - term/schema:affiliation
+      - term/schema:text
+      - term/schema:about
+      - term/schema:citation
+
+  - id: layer/ccso
+    kind: layer
+    label: CCSO 層
+    note: 第2優先。schema.org が持たない学籍側の語彙を補う。
+    members:
+      - term/ccso:Student
+      - term/ccso:UndergraduateStudent
+      - term/ccso:ProgramofStudy
+      - term/ccso:Course
+      - term/ccso:University
+      - term/ccso:School
+      - term/ccso:enrolledIn
+      - term/ccso:hasCompleted
+      - term/ccso:hasRegistered
+      - term/ccso:hasPrerequisite
+      - term/ccso:creditsECTS
+      - term/ccso:code
+
+  - id: layer/local
+    kind: layer
+    label: ローカル拡張層（urd:）
+    note: 第3優先。どちらにも無い概念だけ。近い用語は close-match で明示する。
+    members:
+      - term/urd:yearOfStudy
+      - term/urd:earnedCredits
+      - term/urd:registeredCredits
+      - term/urd:annualCreditLimit
+      - term/urd:requiredCourse
+      - term/urd:minimumYearOfStudy
+      - term/urd:minimumEarnedCredits
+      - term/urd:evaluationDate
+      - term/urd:notificationLevel
+      - term/urd:courseCategory
+      - term/urd:semester
+      - term/urd:Rule
+      - term/urd:DecisionResult
+      - term/urd:Premise
+      - term/urd:constrains
+      - term/urd:basedOnLegislation
+      - term/urd:hornClause
+      - term/urd:status
+      - term/urd:appliedRule
+      - term/urd:usesTerm
+      - term/urd:premise
+      - term/urd:satisfied
+      - term/urd:comparator
+      - term/urd:actualValue
+      - term/urd:expectedValue
+      - term/urd:unmetCondition
+      - term/urd:calculation
+      - term/urd:decision
+      - term/urd:question
+      - term/urd:detectedIntent
+
+  - id: layer/reference
+    kind: layer
+    label: 参照のみの語彙
+    note: 対応関係を示すためだけに登場する。本デモは使用しない。
+    members:
+      - term/oloud:subjectRequires
+      - term/oloud:subjectCredit
+      - term/oloud:studyProgramme
+      - term/oloud:degree
+      - term/oloud:courseTerm
+
+  # 業務領域（概念の階層）
+  - id: domain/all
+    kind: domain
+    label: 大学業務の概念
+    members: [domain/organization, domain/catalog, domain/academic-record, domain/regulation, domain/decision]
+
+  - id: domain/organization
+    kind: domain
+    label: 組織
+    members: [concept/university, concept/faculty, concept/program, concept/credential]
+
+  - id: domain/catalog
+    kind: domain
+    label: 科目カタログ
+    members: [concept/course, concept/credits, concept/course-code, concept/required-course]
+
+  - id: domain/academic-record
+    kind: domain
+    label: 学籍
+    note: schema.org が語彙をほとんど持たない領域。CCSO で補完している。
+    members:
+      - concept/student
+      - concept/enrollment
+      - concept/completed-course
+      - concept/registered-course
+      - concept/registration-action
+      - concept/year-of-study
+      - concept/earned-credits
+
+  - id: domain/regulation
+    kind: domain
+    label: 規程とルール
+    members: [concept/legislation, concept/rule, concept/registration-deadline, concept/annual-credit-limit]
+
+  - id: domain/decision
+    kind: domain
+    label: 判定と通知
+    members: [concept/decision, concept/premise, concept/notification]
+
+  # ルール種別のまとまり
+  - id: rule-group/institutional
+    kind: rule-group
+    label: 制度ルール（1種別1件）
+    note: 対象ノードと根拠条文の指定が必須。
+    members:
+      - rule-type/registration_deadline
+      - rule-type/annual_credit_limit
+      - rule-type/graduation_credit_requirement
+      - rule-type/graduation_required_courses
+      - rule-type/thesis_eligibility
+
+  - id: rule-group/notification
+    kind: rule-group
+    label: 個別通知ルール（複数可）
+    members: [rule-type/personalized_notification]
+
+  # メタ知識（集合についての言明）
+  - id: rationale/why-ccso
+    kind: rationale
+    label: なぜ学籍側を CCSO で補うのか
+    statement: >-
+      schema:numberOfCredits の domain は Course と EducationalOccupationalProgram だけで、
+      Person には付けられない。schema.org は科目カタログ・規程・通知の語彙は十分に持つ一方、
+      「誰が何を修得したか」という学籍側の語彙をほとんど持たない。CCSO はそこを埋め、
+      かつ CCSO 自身が schema:Organization と schema:EducationalOrganization を再利用しているため併用できる。
+    evidence: schema.org 30.0 の定義と、配布物 ccso.owl の内容で確認（2026-09）。
+    about:
+      - domain/academic-record
+      - term/schema:numberOfCredits
+      - term/ccso:hasCompleted
+      - term/ccso:hasRegistered
+      - term/ccso:enrolledIn
+
+  - id: rationale/oloud-is-not-schema-org
+    kind: rationale
+    label: OLOUD・CCSO は schema.org の一部ではない
+    statement: >-
+      どちらも大学領域の独立した語彙である。CCSO は schema.org の用語を直接再利用するため併用できるが、
+      OLOUD は AIISO / FOAF / Dublin Core の上に構築されており schema.org を使わない。
+      本デモは schema.org を土台に CCSO を組み合わせ、OLOUD については対応関係を示すに留める。
+    evidence: >-
+      CCSO は ccso.owl、OLOUD は Acta Polytechnica Hungarica 14(4), 2017 の記述で確認。
+      OLOUD の配布サーバーは 2026-09 時点で応答しない。
+    about: [layer/ccso, layer/reference]
+
+  - id: rationale/derived-credits
+    kind: rationale
+    label: 単位数はグラフに書かず、たどって求める
+    statement: >-
+      学生ノードに修得単位数の合計は書かない。ccso:hasCompleted / ccso:hasRegistered が指す科目の
+      schema:numberOfCredits を合計して導出する。科目を1件足せば合計も判定も自動的に変わり、
+      「なぜその数値なのか」を科目まで遡って説明できる。
+    about: [term/urd:earnedCredits, term/urd:registeredCredits, term/ccso:hasCompleted, term/ccso:hasRegistered]
+
+  - id: rationale/required-course-is-not-prerequisite
+    kind: rationale
+    label: 卒業必修科目に schema:programPrerequisites を使わない理由
+    statement: >-
+      schema:programPrerequisites は「課程に入るための前提」を指し、「修了に必要な科目」ではない。
+      意味が異なるため urd:requiredCourse を定義し、skos:closeMatch に留めて同一視しない。
+    about: [term/urd:requiredCourse, term/schema:programPrerequisites, term/ccso:hasPrerequisite]
+
+  - id: rationale/decision-vocabulary-is-local
+    kind: rationale
+    label: 判定結果の語彙だけはローカルに定義する
+    statement: >-
+      「規則に基づく判定とその根拠」を表す語彙は schema.org にも CCSO にも無い。
+      判定・前提・Horn節・適用ルールは urd: に定義し、schema.org の用語を意味を曲げて流用しない。
+    about: [domain/decision, term/urd:DecisionResult, term/urd:Premise, term/urd:hornClause]
+
+# --- 概念と用語 -------------------------------------------------------------
+# concept は「大学業務で言いたいこと」、term は「それをどの語彙のどの用語で言うか」。
+# concept から term への uses / alternative エッジが、語彙対応表そのものになる。
+nodes:
+  # 語彙そのもの
+  - {id: vocabulary/schema-org, kind: vocabulary, label: schema.org, prefix: schema}
+  - {id: vocabulary/ccso, kind: vocabulary, label: CCSO, prefix: ccso}
+  - {id: vocabulary/oloud, kind: vocabulary, label: OLOUD, prefix: oloud}
+  - {id: vocabulary/local, kind: vocabulary, label: ローカル拡張, prefix: urd}
+
+  # 概念
+  - {id: concept/university, kind: concept, label: 大学}
+  - {id: concept/faculty, kind: concept, label: 学部}
+  - {id: concept/program, kind: concept, label: 課程・プログラム}
+  - {id: concept/credential, kind: concept, label: 学位}
+  - {id: concept/course, kind: concept, label: 科目}
+  - {id: concept/credits, kind: concept, label: 単位数}
+  - {id: concept/course-code, kind: concept, label: 科目コード}
+  - {id: concept/required-course, kind: concept, label: 卒業必修科目}
+  - {id: concept/student, kind: concept, label: 学生}
+  - {id: concept/enrollment, kind: concept, label: 在籍}
+  - {id: concept/completed-course, kind: concept, label: 修得済み科目}
+  - {id: concept/registered-course, kind: concept, label: 履修登録済み科目}
+  - {id: concept/registration-action, kind: concept, label: 履修登録という行為と状態}
+  - {id: concept/year-of-study, kind: concept, label: 学年}
+  - {id: concept/earned-credits, kind: concept, label: 修得単位数の合計}
+  - {id: concept/legislation, kind: concept, label: 学則・履修規程}
+  - {id: concept/rule, kind: concept, label: ルール}
+  - {id: concept/registration-deadline, kind: concept, label: 履修登録期限}
+  - {id: concept/annual-credit-limit, kind: concept, label: 年間履修上限}
+  - {id: concept/decision, kind: concept, label: 判定結果}
+  - {id: concept/premise, kind: concept, label: 判定の前提}
+  - {id: concept/notification, kind: concept, label: 通知}
+
+  # schema.org の用語
+  - {id: term/schema:CollegeOrUniversity, kind: term, curie: "schema:CollegeOrUniversity", term_kind: class, label: 大学}
+  - {id: term/schema:EducationalOrganization, kind: term, curie: "schema:EducationalOrganization", term_kind: class, label: 教育機関}
+  - {id: term/schema:EducationalOccupationalProgram, kind: term, curie: "schema:EducationalOccupationalProgram", term_kind: class, label: 課程}
+  - {id: term/schema:Course, kind: term, curie: "schema:Course", term_kind: class, label: 科目}
+  - {id: term/schema:Person, kind: term, curie: "schema:Person", term_kind: class, label: 人}
+  - {id: term/schema:EducationalOccupationalCredential, kind: term, curie: "schema:EducationalOccupationalCredential", term_kind: class, label: 学位・資格}
+  - {id: term/schema:Legislation, kind: term, curie: "schema:Legislation", term_kind: class, label: 法令・規程}
+  - {id: term/schema:Message, kind: term, curie: "schema:Message", term_kind: class, label: メッセージ}
+  - {id: term/schema:RegisterAction, kind: term, curie: "schema:RegisterAction", term_kind: class, label: 登録行為}
+  - {id: term/schema:actionStatus, kind: term, curie: "schema:actionStatus", term_kind: property, label: 行為の状態}
+  - {id: term/schema:applicationDeadline, kind: term, curie: "schema:applicationDeadline", term_kind: property, label: 申請期限}
+  - {id: term/schema:numberOfCredits, kind: term, curie: "schema:numberOfCredits", term_kind: property, label: 単位数,
+     note: "domain は Course と EducationalOccupationalProgram のみ。Person には付けられない。"}
+  - {id: term/schema:courseCode, kind: term, curie: "schema:courseCode", term_kind: property, label: 科目コード}
+  - {id: term/schema:coursePrerequisites, kind: term, curie: "schema:coursePrerequisites", term_kind: property, label: 科目の前提}
+  - {id: term/schema:programPrerequisites, kind: term, curie: "schema:programPrerequisites", term_kind: property, label: 課程の入学要件,
+     note: 修了要件ではない。}
+  - {id: term/schema:identifier, kind: term, curie: "schema:identifier", term_kind: property, label: 識別子}
+  - {id: term/schema:name, kind: term, curie: "schema:name", term_kind: property, label: 名称}
+  - {id: term/schema:affiliation, kind: term, curie: "schema:affiliation", term_kind: property, label: 所属}
+  - {id: term/schema:text, kind: term, curie: "schema:text", term_kind: property, label: 本文}
+  # 以下2件は close-match の相手としてのみ登場する（本デモでは使用しない）。
+  - {id: term/schema:about, kind: term, curie: "schema:about", term_kind: property, label: 主題}
+  - {id: term/schema:citation, kind: term, curie: "schema:citation", term_kind: property, label: 引用}
+
+  # CCSO の用語
+  - {id: term/ccso:Student, kind: term, curie: "ccso:Student", term_kind: class, label: 学生}
+  - {id: term/ccso:UndergraduateStudent, kind: term, curie: "ccso:UndergraduateStudent", term_kind: class, label: 学部学生}
+  - {id: term/ccso:ProgramofStudy, kind: term, curie: "ccso:ProgramofStudy", term_kind: class, label: 課程}
+  - {id: term/ccso:Course, kind: term, curie: "ccso:Course", term_kind: class, label: 科目}
+  - {id: term/ccso:University, kind: term, curie: "ccso:University", term_kind: class, label: 大学}
+  - {id: term/ccso:School, kind: term, curie: "ccso:School", term_kind: class, label: 学部}
+  - {id: term/ccso:enrolledIn, kind: term, curie: "ccso:enrolledIn", term_kind: property, label: 在籍している}
+  - {id: term/ccso:hasCompleted, kind: term, curie: "ccso:hasCompleted", term_kind: property, label: 修得した}
+  - {id: term/ccso:hasRegistered, kind: term, curie: "ccso:hasRegistered", term_kind: property, label: 履修登録した}
+  - {id: term/ccso:hasPrerequisite, kind: term, curie: "ccso:hasPrerequisite", term_kind: property, label: 前提を持つ}
+  - {id: term/ccso:creditsECTS, kind: term, curie: "ccso:creditsECTS", term_kind: property, label: ECTS単位数}
+  - {id: term/ccso:code, kind: term, curie: "ccso:code", term_kind: property, label: コード}
+
+  # OLOUD の用語（参照のみ）
+  - {id: term/oloud:subjectRequires, kind: term, curie: "oloud:subjectRequires", term_kind: property, label: 科目の前提}
+  - {id: term/oloud:subjectCredit, kind: term, curie: "oloud:subjectCredit", term_kind: property, label: 科目の単位数}
+  - {id: term/oloud:studyProgramme, kind: term, curie: "oloud:studyProgramme", term_kind: property, label: 課程}
+  - {id: term/oloud:degree, kind: term, curie: "oloud:degree", term_kind: property, label: 学位}
+  - {id: term/oloud:courseTerm, kind: term, curie: "oloud:courseTerm", term_kind: property, label: 開講学期}
+
+  # ローカル拡張の用語（label と comment が src/ontology.py の定義になる）
+  - id: term/urd:yearOfStudy
+    kind: term
+    curie: "urd:yearOfStudy"
+    term_kind: property
+    label: 学年
+    comment: 学生が在籍している年次。schema.org・CCSO ともに該当用語が無い。
+  - id: term/urd:earnedCredits
+    kind: term
+    curie: "urd:earnedCredits"
+    term_kind: property
+    label: 修得単位数
+    comment: >-
+      ccso:hasCompleted で結ばれた科目の schema:numberOfCredits の合計。
+      schema:numberOfCredits は Person を domain に取れないため別用語とした。
+  - id: term/urd:registeredCredits
+    kind: term
+    curie: "urd:registeredCredits"
+    term_kind: property
+    label: 履修登録単位数
+    comment: ccso:hasRegistered で結ばれた科目の schema:numberOfCredits の合計。
+  - id: term/urd:annualCreditLimit
+    kind: term
+    curie: "urd:annualCreditLimit"
+    term_kind: property
+    label: 年間履修上限単位数
+    comment: 1年度に履修登録できる単位数の上限。schema.org に該当用語が無い。
+  - id: term/urd:requiredCourse
+    kind: term
+    curie: "urd:requiredCourse"
+    term_kind: property
+    label: 卒業必修科目
+    comment: >-
+      課程を修了するために修得が必要な科目。
+      schema:programPrerequisites は入学要件を指すため同一視しない。
+    close_match: ["schema:programPrerequisites", "ccso:hasPrerequisite"]
+  - id: term/urd:minimumYearOfStudy
+    kind: term
+    curie: "urd:minimumYearOfStudy"
+    term_kind: property
+    label: 履修に必要な最低学年
+    comment: 科目を履修登録するために必要な最低年次。
+  - id: term/urd:minimumEarnedCredits
+    kind: term
+    curie: "urd:minimumEarnedCredits"
+    term_kind: property
+    label: 履修に必要な最低修得単位数
+    comment: 科目を履修登録するために必要な修得単位数の下限。
+    close_match: ["schema:coursePrerequisites"]
+  - id: term/urd:evaluationDate
+    kind: term
+    curie: "urd:evaluationDate"
+    term_kind: property
+    label: 判定基準日
+    comment: デモを再現可能にするために固定した評価日。
+  - id: term/urd:notificationLevel
+    kind: term
+    curie: "urd:notificationLevel"
+    term_kind: property
+    label: 通知レベル
+    comment: 通知の重要度。info / success / warning / error。
+  - id: term/urd:courseCategory
+    kind: term
+    curie: "urd:courseCategory"
+    term_kind: property
+    label: 科目区分
+    comment: 教養科目・専門基礎科目などの区分。schema:DefinedTerm を値に取る。
+    close_match: ["schema:about"]
+  - id: term/urd:semester
+    kind: term
+    curie: "urd:semester"
+    term_kind: property
+    label: 学期
+    comment: 前期（first）／後期（second）。
+    close_match: ["oloud:courseTerm"]
+  - id: term/urd:Rule
+    kind: term
+    curie: "urd:Rule"
+    term_kind: class
+    label: ルール
+    comment: data/rules.yaml の1件。規程の条文を機械可読にしたもの。
+  - id: term/urd:DecisionResult
+    kind: term
+    curie: "urd:DecisionResult"
+    term_kind: class
+    label: 判定結果
+    comment: Rule Engine が返した決定論的な判定。生成AIは介在しない。
+  - id: term/urd:Premise
+    kind: term
+    curie: "urd:Premise"
+    term_kind: class
+    label: 前提
+    comment: 判定の根拠となった原子論理式ひとつ分。Horn節の本体に対応する。
+  - id: term/urd:constrains
+    kind: term
+    curie: "urd:constrains"
+    term_kind: property
+    label: 制約対象
+    comment: ルールが制約するノード。
+  - id: term/urd:basedOnLegislation
+    kind: term
+    curie: "urd:basedOnLegislation"
+    term_kind: property
+    label: 根拠条文
+    comment: ルールの根拠となる schema:Legislation ノード。
+    close_match: ["schema:citation"]
+  - id: term/urd:hornClause
+    kind: term
+    curie: "urd:hornClause"
+    term_kind: property
+    label: Horn節
+    comment: 判定をHorn節として書き下したもの。人間のレビュー用で、実行はしない。
+  - id: term/urd:status
+    kind: term
+    curie: "urd:status"
+    term_kind: property
+    label: 判定区分
+    comment: eligible / not_eligible / info / unknown。
+  - id: term/urd:appliedRule
+    kind: term
+    curie: "urd:appliedRule"
+    term_kind: property
+    label: 適用ルール
+    comment: 判定に使ったルール。
+  - id: term/urd:usesTerm
+    kind: term
+    curie: "urd:usesTerm"
+    term_kind: property
+    label: 使用用語
+    comment: 判定が読んだオントロジー用語。
+  - id: term/urd:premise
+    kind: term
+    curie: "urd:premise"
+    term_kind: property
+    label: 前提
+    comment: 判定結果が持つ前提の並び。
+  - id: term/urd:satisfied
+    kind: term
+    curie: "urd:satisfied"
+    term_kind: property
+    label: 充足
+    comment: その前提が満たされたかどうか。
+  - id: term/urd:comparator
+    kind: term
+    curie: "urd:comparator"
+    term_kind: property
+    label: 比較演算子
+    comment: ">= や contains など、前提の評価に使った演算子。"
+  - id: term/urd:actualValue
+    kind: term
+    curie: "urd:actualValue"
+    term_kind: property
+    label: 実際の値
+    comment: グラフから読み取った値。
+  - id: term/urd:expectedValue
+    kind: term
+    curie: "urd:expectedValue"
+    term_kind: property
+    label: 期待する値
+    comment: ルールが要求する値。
+  - id: term/urd:unmetCondition
+    kind: term
+    curie: "urd:unmetCondition"
+    term_kind: property
+    label: 満たしていない条件
+    comment: 不足している要件の説明文。
+  - id: term/urd:calculation
+    kind: term
+    curie: "urd:calculation"
+    term_kind: property
+    label: 計算式
+    comment: 数値判定の計算過程。
+  - id: term/urd:decision
+    kind: term
+    curie: "urd:decision"
+    term_kind: property
+    label: 判定
+    comment: 通知の根拠となった判定結果。
+  - id: term/urd:question
+    kind: term
+    curie: "urd:question"
+    term_kind: property
+    label: 質問
+    comment: 利用者が入力した自然言語の質問。
+  - id: term/urd:detectedIntent
+    kind: term
+    curie: "urd:detectedIntent"
+    term_kind: property
+    label: 検出したIntent
+    comment: ルールベースIntent Detectionが返した意図。
+
+  # ルール種別。ここの値が Rule Engine の語彙束縛そのものになる。
+  - id: rule-type/registration_deadline
+    kind: rule-type
+    rule_type: registration_deadline
+    label: 履修登録期限
+    subject_class: "schema:EducationalOccupationalProgram"
+    rule_terms:
+      deadline: "schema:applicationDeadline"
+    evaluated_terms: ["urd:evaluationDate"]
+    horn_clause: >-
+      registration_deadline(Program, Deadline, DaysLeft) :-
+      schema:applicationDeadline(Program, Deadline),
+      urd:evaluationDate(Today), DaysLeft is Deadline - Today.
+
+  - id: rule-type/annual_credit_limit
+    kind: rule-type
+    rule_type: annual_credit_limit
+    label: 年間履修上限
+    subject_class: "schema:EducationalOccupationalProgram"
+    rule_terms:
+      max_credits: "urd:annualCreditLimit"
+    evaluated_terms: ["ccso:hasRegistered", "schema:numberOfCredits"]
+    horn_clause: >-
+      remaining_credits(Student, Remaining) :- ccso:enrolledIn(Student, Program),
+      urd:annualCreditLimit(Program, Limit), urd:registeredCredits(Student, Registered),
+      Remaining is max(0, Limit - Registered).
+
+  - id: rule-type/graduation_credit_requirement
+    kind: rule-type
+    rule_type: graduation_credit_requirement
+    label: 卒業必要単位数
+    subject_class: "schema:EducationalOccupationalProgram"
+    rule_terms:
+      required_credits: "schema:numberOfCredits"
+    evaluated_terms: ["urd:earnedCredits"]
+    horn_clause: >-
+      meets_credit_requirement(Student) :- ccso:enrolledIn(Student, Program),
+      schema:numberOfCredits(Program, Required), urd:earnedCredits(Student, Earned),
+      Earned >= Required.
+
+  - id: rule-type/graduation_required_courses
+    kind: rule-type
+    rule_type: graduation_required_courses
+    label: 卒業必修科目
+    subject_class: "schema:EducationalOccupationalProgram"
+    rule_terms:
+      required_courses: "urd:requiredCourse"
+    evaluated_terms: ["ccso:hasCompleted"]
+    horn_clause: >-
+      meets_course_requirement(Student) :- ccso:enrolledIn(Student, Program),
+      forall(urd:requiredCourse(Program, Course), ccso:hasCompleted(Student, Course)).
+
+  - id: rule-type/thesis_eligibility
+    kind: rule-type
+    rule_type: thesis_eligibility
+    label: 卒業研究履修条件
+    subject_class: "schema:Course"
+    rule_terms:
+      required_courses: "schema:coursePrerequisites"
+      minimum_year_of_study: "urd:minimumYearOfStudy"
+      minimum_earned_credits: "urd:minimumEarnedCredits"
+    evaluated_terms: ["urd:yearOfStudy", "urd:earnedCredits", "ccso:hasCompleted"]
+    horn_clause: >-
+      eligible_to_register(Student, Thesis) :- urd:minimumYearOfStudy(Thesis, MinYear),
+      urd:yearOfStudy(Student, Year), Year >= MinYear,
+      urd:minimumEarnedCredits(Thesis, MinCredits), urd:earnedCredits(Student, Earned),
+      Earned >= MinCredits,
+      forall(schema:coursePrerequisites(Thesis, Course), ccso:hasCompleted(Student, Course)).
+
+  - id: rule-type/personalized_notification
+    kind: rule-type
+    rule_type: personalized_notification
+    label: 個別通知ルール
+    subject_class: "schema:Person"
+    rule_terms:
+      message: "schema:text"
+      level: "urd:notificationLevel"
+    evaluated_terms: []
+    horn_clause: >-
+      notify(Student, Message) :- condition_1(Student), ..., condition_n(Student),
+      schema:text(Rule, Message).
+
+# --- 明示的な関係 -----------------------------------------------------------
+# uses        … その概念を本デモで表すのに採用した用語
+# alternative … 他の語彙での対応する用語（採用はしていない）
+# close-match … 意味が近いが同一視しない（skos:closeMatch として出力される）
+# derived-from… その用語の値が、別の用語をたどって導出されることを示す
+# defined-in  … 用語がどの語彙に属するか
+edges:
+  # 組織
+  - {source: concept/university, target: term/schema:CollegeOrUniversity, kind: uses}
+  - {source: concept/university, target: term/ccso:University, kind: alternative}
+  - {source: concept/faculty, target: term/schema:EducationalOrganization, kind: uses}
+  - {source: concept/faculty, target: term/ccso:School, kind: alternative}
+  - {source: concept/program, target: term/schema:EducationalOccupationalProgram, kind: uses}
+  - {source: concept/program, target: term/ccso:ProgramofStudy, kind: alternative}
+  - {source: concept/program, target: term/oloud:studyProgramme, kind: alternative}
+  - {source: concept/credential, target: term/schema:EducationalOccupationalCredential, kind: uses}
+  - {source: concept/credential, target: term/oloud:degree, kind: alternative}
+
+  # 科目カタログ
+  - {source: concept/course, target: term/schema:Course, kind: uses}
+  - {source: concept/course, target: term/ccso:Course, kind: alternative}
+  - {source: concept/credits, target: term/schema:numberOfCredits, kind: uses}
+  - {source: concept/credits, target: term/ccso:creditsECTS, kind: alternative}
+  - {source: concept/credits, target: term/oloud:subjectCredit, kind: alternative}
+  - {source: concept/course-code, target: term/schema:courseCode, kind: uses}
+  - {source: concept/course-code, target: term/ccso:code, kind: alternative}
+  - {source: concept/required-course, target: term/urd:requiredCourse, kind: uses}
+  - {source: concept/required-course, target: term/schema:programPrerequisites, kind: alternative}
+  - {source: concept/required-course, target: term/ccso:hasPrerequisite, kind: alternative}
+  - {source: concept/required-course, target: term/oloud:subjectRequires, kind: alternative}
+
+  # 学籍
+  - {source: concept/student, target: term/schema:Person, kind: uses}
+  - {source: concept/student, target: term/ccso:UndergraduateStudent, kind: uses}
+  - {source: concept/student, target: term/ccso:Student, kind: alternative}
+  - {source: concept/enrollment, target: term/ccso:enrolledIn, kind: uses}
+  - {source: concept/completed-course, target: term/ccso:hasCompleted, kind: uses}
+  - {source: concept/registered-course, target: term/ccso:hasRegistered, kind: uses}
+  - {source: concept/registration-action, target: term/schema:RegisterAction, kind: uses}
+  - {source: concept/registration-action, target: term/schema:actionStatus, kind: uses}
+  - {source: concept/year-of-study, target: term/urd:yearOfStudy, kind: uses}
+  - {source: concept/earned-credits, target: term/urd:earnedCredits, kind: uses}
+  - {source: term/urd:earnedCredits, target: term/ccso:hasCompleted, kind: derived-from,
+     label: 修得科目をたどって}
+  - {source: term/urd:earnedCredits, target: term/schema:numberOfCredits, kind: derived-from,
+     label: 単位数を合計}
+  - {source: term/urd:registeredCredits, target: term/ccso:hasRegistered, kind: derived-from}
+  - {source: term/urd:registeredCredits, target: term/schema:numberOfCredits, kind: derived-from}
+
+  # 規程・ルール
+  - {source: concept/legislation, target: term/schema:Legislation, kind: uses}
+  - {source: concept/rule, target: term/urd:Rule, kind: uses}
+  - {source: concept/registration-deadline, target: term/schema:applicationDeadline, kind: uses}
+  - {source: concept/annual-credit-limit, target: term/urd:annualCreditLimit, kind: uses}
+  - {source: term/urd:Rule, target: term/urd:constrains, kind: has-property}
+  - {source: term/urd:Rule, target: term/urd:basedOnLegislation, kind: has-property}
+  - {source: term/urd:basedOnLegislation, target: term/schema:Legislation, kind: range}
+
+  # 判定・通知
+  - {source: concept/decision, target: term/urd:DecisionResult, kind: uses}
+  - {source: concept/premise, target: term/urd:Premise, kind: uses}
+  - {source: concept/notification, target: term/schema:Message, kind: uses}
+  - {source: term/urd:DecisionResult, target: term/urd:premise, kind: has-property}
+  - {source: term/urd:DecisionResult, target: term/urd:hornClause, kind: has-property}
+  - {source: term/urd:DecisionResult, target: term/urd:usesTerm, kind: has-property}
+  - {source: term/urd:DecisionResult, target: term/urd:status, kind: has-property}
+  - {source: term/urd:premise, target: term/urd:Premise, kind: range}
+  - {source: term/schema:Message, target: term/urd:decision, kind: has-property}
+
+  # 語彙の帰属（hypernode を端点に取る例）
+  - {source: vocabulary/schema-org, target: layer/schema-org, kind: defined-in}
+  - {source: vocabulary/ccso, target: layer/ccso, kind: defined-in}
+  - {source: vocabulary/oloud, target: layer/reference, kind: defined-in}
+  - {source: vocabulary/local, target: layer/local, kind: defined-in}
+  - {source: vocabulary/ccso, target: vocabulary/schema-org, kind: reuses,
+     label: CCSO は schema:Organization を再利用}

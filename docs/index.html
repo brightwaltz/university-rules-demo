@@ -4,44 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>大学 Rules as Code アシスタント（schema.orgオントロジー版）</title>
-<style>
-  :root { color-scheme: light dark; --line: color-mix(in srgb, currentColor 18%, transparent); }
-  * { box-sizing: border-box; }
-  body { margin: 0; font: 15px/1.7 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
-  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
-  h2 { font-size: 1.1rem; margin: 32px 0 8px; padding-top: 16px; border-top: 1px solid var(--line); }
-  h3 { font-size: 1rem; margin: 16px 0 6px; }
-  .muted { opacity: .7; font-size: .875rem; }
-  .card, .notice, details { border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin: 8px 0; }
-  .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
-  .metric { flex: 1 1 160px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
-  .metric b { display: block; font-size: 1.25rem; }
-  .notice.info { border-left: 5px solid #3b82f6; }
-  .notice.success { border-left: 5px solid #22c55e; }
-  .notice.warning { border-left: 5px solid #f59e0b; }
-  .notice.error { border-left: 5px solid #ef4444; }
-  table { border-collapse: collapse; width: 100%; font-size: .875rem; }
-  th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
-  th { font-weight: 600; }
-  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8125rem; }
-  pre { overflow-x: auto; background: color-mix(in srgb, currentColor 6%, transparent); padding: 10px 12px; border-radius: 8px; }
-  input, select, textarea, button { font: inherit; padding: 6px 10px; border-radius: 8px;
-    border: 1px solid var(--line); background: transparent; color: inherit; max-width: 100%; }
-  button { cursor: pointer; }
-  button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
-  .row label { min-width: 190px; }
-  .flow { text-align: center; line-height: 1.9; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
-  .ok { color: #16a34a; } .ng { color: #dc2626; }
-  .scroll { max-height: 320px; overflow: auto; }
-</style>
+<link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
-<main>
+
+<header class="site-header">
+  <a class="brand" href="index.html">大学 Rules as Code アシスタント<small>schema.org オントロジーに基づく研究用プロトタイプ</small></a>
+  <nav class="site-nav">
+    <a href="index.html" aria-current="page">デモ</a>
+    <a href="graph.html">オントロジーグラフ</a>
+  </nav>
+</header>
+
+<main class="wrap">
   <h1>大学 Rules as Code アシスタント</h1>
   <p class="muted">schema.org を基底とする共通オントロジー上のナレッジグラフと、大学規則（Rules as Code）から、
   根拠付きで回答・通知する研究用プロトタイプ。LLM・APIキーは使用していません。</p>
+  <p class="muted">語彙の構造そのものは<a href="graph.html">オントロジーグラフ</a>で可視化・編集できます。</p>
   <div class="flow">質問 → ルールベースIntent判定 → 共通オントロジー（schema.org ＋ CCSO） →
   ナレッジグラフ ＋ Rules as Code → 決定論的判定 → 回答・通知（JSON-LD）</div>
 
@@ -1980,12 +1959,12 @@
  "context": {
   "schema": "https://schema.org/",
   "ccso": "https://w3id.org/ccso/ccso#",
+  "urd": "https://brightwaltz.github.io/university-rules-demo/ns#",
+  "urdi": "https://brightwaltz.github.io/university-rules-demo/id/",
   "oloud": "http://lod.nik.uni-obuda.hu/oloud/oloud#",
   "skos": "http://www.w3.org/2004/02/skos/core#",
   "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-  "xsd": "http://www.w3.org/2001/XMLSchema#",
-  "urd": "https://brightwaltz.github.io/university-rules-demo/ns#",
-  "urdi": "https://brightwaltz.github.io/university-rules-demo/id/"
+  "xsd": "http://www.w3.org/2001/XMLSchema#"
  },
  "rule_types": {
   "registration_deadline": {
@@ -2090,48 +2069,61 @@
   },
   "schema:actionStatus": {
    "type": "bool",
-   "label": "履修登録の完了状態"
+   "label": "行為の状態"
   },
   "ccso:hasCompleted": {
    "type": "list",
-   "label": "修得済み科目"
+   "label": "修得した"
   },
   "ccso:hasRegistered": {
    "type": "list",
-   "label": "履修登録済み科目"
+   "label": "履修登録した"
   }
  },
  "crosswalk": [
   {
    "concept": "大学",
+   "concept_id": "concept/university",
    "demo": "schema:CollegeOrUniversity",
    "schema_org": "schema:CollegeOrUniversity",
    "ccso": "ccso:University",
-   "oloud": "（aiiso 経由）"
+   "oloud": "（該当なし）"
   },
   {
    "concept": "学部",
+   "concept_id": "concept/faculty",
    "demo": "schema:EducationalOrganization",
    "schema_org": "schema:EducationalOrganization",
    "ccso": "ccso:School",
-   "oloud": "aiiso:Department"
+   "oloud": "（該当なし）"
   },
   {
    "concept": "課程・プログラム",
+   "concept_id": "concept/program",
    "demo": "schema:EducationalOccupationalProgram",
    "schema_org": "schema:EducationalOccupationalProgram",
    "ccso": "ccso:ProgramofStudy",
    "oloud": "oloud:studyProgramme"
   },
   {
+   "concept": "学位",
+   "concept_id": "concept/credential",
+   "demo": "schema:EducationalOccupationalCredential",
+   "schema_org": "schema:EducationalOccupationalCredential",
+   "ccso": "（該当なし）",
+   "oloud": "oloud:degree"
+  },
+  {
    "concept": "科目",
+   "concept_id": "concept/course",
    "demo": "schema:Course",
    "schema_org": "schema:Course",
    "ccso": "ccso:Course",
-   "oloud": "aiiso:Subject / aiiso:Course"
+   "oloud": "（該当なし）"
   },
   {
    "concept": "単位数",
+   "concept_id": "concept/credits",
    "demo": "schema:numberOfCredits",
    "schema_org": "schema:numberOfCredits",
    "ccso": "ccso:creditsECTS",
@@ -2139,20 +2131,31 @@
   },
   {
    "concept": "科目コード",
+   "concept_id": "concept/course-code",
    "demo": "schema:courseCode",
    "schema_org": "schema:courseCode",
    "ccso": "ccso:code",
-   "oloud": "aiiso:code"
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "卒業必修科目",
+   "concept_id": "concept/required-course",
+   "demo": "urd:requiredCourse",
+   "schema_org": "schema:programPrerequisites",
+   "ccso": "ccso:hasPrerequisite",
+   "oloud": "oloud:subjectRequires"
   },
   {
    "concept": "学生",
-   "demo": "schema:Person + ccso:UndergraduateStudent",
+   "concept_id": "concept/student",
+   "demo": "schema:Person ＋ ccso:UndergraduateStudent",
    "schema_org": "schema:Person",
-   "ccso": "ccso:Student / ccso:UndergraduateStudent",
-   "oloud": "foaf:Person"
+   "ccso": "ccso:UndergraduateStudent",
+   "oloud": "（該当なし）"
   },
   {
    "concept": "在籍",
+   "concept_id": "concept/enrollment",
    "demo": "ccso:enrolledIn",
    "schema_org": "（該当なし）",
    "ccso": "ccso:enrolledIn",
@@ -2160,6 +2163,7 @@
   },
   {
    "concept": "修得済み科目",
+   "concept_id": "concept/completed-course",
    "demo": "ccso:hasCompleted",
    "schema_org": "（該当なし）",
    "ccso": "ccso:hasCompleted",
@@ -2167,48 +2171,23 @@
   },
   {
    "concept": "履修登録済み科目",
+   "concept_id": "concept/registered-course",
    "demo": "ccso:hasRegistered",
    "schema_org": "（該当なし）",
    "ccso": "ccso:hasRegistered",
    "oloud": "（該当なし）"
   },
   {
-   "concept": "履修登録という行為と其の状態",
-   "demo": "schema:RegisterAction + schema:actionStatus",
-   "schema_org": "schema:RegisterAction / schema:actionStatus",
-   "ccso": "（該当なし）",
-   "oloud": "（該当なし）"
-  },
-  {
-   "concept": "履修登録期限",
-   "demo": "schema:applicationDeadline",
-   "schema_org": "schema:applicationDeadline",
-   "ccso": "（該当なし）",
-   "oloud": "（該当なし）"
-  },
-  {
-   "concept": "学位",
-   "demo": "schema:EducationalOccupationalCredential",
-   "schema_org": "schema:EducationalOccupationalCredential",
-   "ccso": "ccso:Bachelor / ccso:hasDegree",
-   "oloud": "oloud:degree"
-  },
-  {
-   "concept": "学則・履修規程",
-   "demo": "schema:Legislation",
-   "schema_org": "schema:Legislation",
-   "ccso": "（該当なし）",
-   "oloud": "（該当なし）"
-  },
-  {
-   "concept": "通知",
-   "demo": "schema:Message",
-   "schema_org": "schema:Message",
+   "concept": "履修登録という行為と状態",
+   "concept_id": "concept/registration-action",
+   "demo": "schema:RegisterAction ＋ schema:actionStatus",
+   "schema_org": "schema:RegisterAction ＋ schema:actionStatus",
    "ccso": "（該当なし）",
    "oloud": "（該当なし）"
   },
   {
    "concept": "学年",
+   "concept_id": "concept/year-of-study",
    "demo": "urd:yearOfStudy",
    "schema_org": "（該当なし）",
    "ccso": "（該当なし）",
@@ -2216,24 +2195,67 @@
   },
   {
    "concept": "修得単位数の合計",
+   "concept_id": "concept/earned-credits",
    "demo": "urd:earnedCredits",
-   "schema_org": "（該当なし。numberOfCredits は Person に付けられない）",
-   "ccso": "（該当なし。ccso:hasCompleted から集計する）",
+   "schema_org": "（該当なし）",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "学則・履修規程",
+   "concept_id": "concept/legislation",
+   "demo": "schema:Legislation",
+   "schema_org": "schema:Legislation",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "ルール",
+   "concept_id": "concept/rule",
+   "demo": "urd:Rule",
+   "schema_org": "（該当なし）",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "履修登録期限",
+   "concept_id": "concept/registration-deadline",
+   "demo": "schema:applicationDeadline",
+   "schema_org": "schema:applicationDeadline",
+   "ccso": "（該当なし）",
    "oloud": "（該当なし）"
   },
   {
    "concept": "年間履修上限",
+   "concept_id": "concept/annual-credit-limit",
    "demo": "urd:annualCreditLimit",
    "schema_org": "（該当なし）",
    "ccso": "（該当なし）",
    "oloud": "（該当なし）"
   },
   {
-   "concept": "卒業必修科目",
-   "demo": "urd:requiredCourse",
-   "schema_org": "schema:programPrerequisites（closeMatch。入学要件の意味なので同一視しない）",
-   "ccso": "ccso:hasPrerequisite（closeMatch）",
-   "oloud": "oloud:subjectRequires（closeMatch）"
+   "concept": "判定結果",
+   "concept_id": "concept/decision",
+   "demo": "urd:DecisionResult",
+   "schema_org": "（該当なし）",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "判定の前提",
+   "concept_id": "concept/premise",
+   "demo": "urd:Premise",
+   "schema_org": "（該当なし）",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "通知",
+   "concept_id": "concept/notification",
+   "demo": "schema:Message",
+   "schema_org": "schema:Message",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
   }
  ],
  "local_terms": {
@@ -2244,7 +2266,7 @@
   },
   "urd:earnedCredits": {
    "label": "修得単位数",
-   "comment": "ccso:hasCompleted で結ばれた科目の schema:numberOfCredits の合計。schema:numberOfCredits は Person を domain に取れないため別用語とした。",
+   "comment": "ccso:hasCompleted で結ばれた科目の schema:numberOfCredits の合計。 schema:numberOfCredits は Person を domain に取れないため別用語とした。",
    "close_match": []
   },
   "urd:registeredCredits": {
@@ -2259,7 +2281,7 @@
   },
   "urd:requiredCourse": {
    "label": "卒業必修科目",
-   "comment": "課程を修了するために修得が必要な科目。schema:programPrerequisites は入学要件を指すため同一視しない。",
+   "comment": "課程を修了するために修得が必要な科目。 schema:programPrerequisites は入学要件を指すため同一視しない。",
    "close_match": [
     "schema:programPrerequisites",
     "ccso:hasPrerequisite"
@@ -2404,7 +2426,7 @@
 <!-- END ontology -->
 
 <!--
-  以下の2つの <script> は役割を分けている。
+  以下の2つのスクリプトは役割を分けている。
     engine … ナレッジグラフの読み取りと判定ロジック。DOMには触れない。
     view   … 画面描画とイベント処理。
   engine 側は tests/js/check_mirror.mjs が Node.js で直接実行し、
