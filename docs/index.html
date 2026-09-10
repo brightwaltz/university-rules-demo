@@ -1,83 +1,3121 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>大学 Rules as Code アシスタント</title>
-  <style>
-    :root{color-scheme:light dark;--bg:#f6f8fb;--panel:#fff;--text:#172033;--muted:#637083;--line:#dfe5ed;--brand:#3157d5;--soft:#eef2ff;--ok:#e8f7ee;--warn:#fff6db;--bad:#ffe9e7}
-    @media(prefers-color-scheme:dark){:root{--bg:#0d1117;--panel:#161b22;--text:#f0f3f6;--muted:#9aa4b2;--line:#30363d;--brand:#8aa4ff;--soft:#1d284d;--ok:#173b29;--warn:#443b16;--bad:#492321}}
-    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.6 system-ui,-apple-system,"Noto Sans JP",sans-serif}.wrap{max-width:1120px;margin:auto;padding:34px 20px 80px}h1{font-size:clamp(2rem,5vw,3.4rem);margin:0 0 6px}h2{margin-top:42px;font-size:1.8rem}.lead,.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card,.notice,.answer,.manager{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}.metric span{display:block;color:var(--muted);font-size:.85rem}.metric strong{font-size:1.3rem}select,input,textarea,button{font:inherit}select,input,textarea{width:100%;padding:11px 12px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:9px}textarea{min-height:82px}button{border:0;border-radius:9px;padding:10px 16px;background:var(--brand);color:white;cursor:pointer;font-weight:700}button.secondary{background:var(--soft);color:var(--text)}button.danger{background:#c33}.row{display:flex;gap:12px;align-items:end}.row>*{flex:1}.notice{margin:10px 0}.notice.success{background:var(--ok)}.notice.warning{background:var(--warn)}.notice.error{background:var(--bad)}details{margin-top:10px;border:1px solid var(--line);border-radius:9px;padding:10px}summary{cursor:pointer;font-weight:700}code,pre{background:var(--soft);border-radius:6px}code{padding:2px 5px}pre{padding:12px;overflow:auto}.tabs{display:flex;gap:8px;margin:15px 0}.tab.active{background:var(--brand);color:white}.hidden{display:none}.rule-list{overflow:auto}.rule-table{width:100%;border-collapse:collapse}.rule-table th,.rule-table td{padding:10px;border-bottom:1px solid var(--line);text-align:left}.conditions{display:grid;grid-template-columns:2fr 1fr 2fr auto;gap:8px;margin:8px 0}.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--soft);font-size:.8rem}.flow{text-align:center;padding:14px;background:var(--soft);border-radius:12px}.status{min-height:24px;font-weight:700}.footer{margin-top:40px;color:var(--muted);font-size:.9rem}@media(max-width:760px){.grid{grid-template-columns:1fr 1fr}.row{display:block}.row>*{margin-bottom:10px}.conditions{grid-template-columns:1fr 1fr}.conditions button{grid-column:2}}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>大学 Rules as Code アシスタント（schema.orgオントロジー版）</title>
+<style>
+  :root { color-scheme: light dark; --line: color-mix(in srgb, currentColor 18%, transparent); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.7 system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.1rem; margin: 32px 0 8px; padding-top: 16px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 16px 0 6px; }
+  .muted { opacity: .7; font-size: .875rem; }
+  .card, .notice, details { border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin: 8px 0; }
+  .metrics { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .metric { flex: 1 1 160px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  .metric b { display: block; font-size: 1.25rem; }
+  .notice.info { border-left: 5px solid #3b82f6; }
+  .notice.success { border-left: 5px solid #22c55e; }
+  .notice.warning { border-left: 5px solid #f59e0b; }
+  .notice.error { border-left: 5px solid #ef4444; }
+  table { border-collapse: collapse; width: 100%; font-size: .875rem; }
+  th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
+  th { font-weight: 600; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .8125rem; }
+  pre { overflow-x: auto; background: color-mix(in srgb, currentColor 6%, transparent); padding: 10px 12px; border-radius: 8px; }
+  input, select, textarea, button { font: inherit; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: transparent; color: inherit; max-width: 100%; }
+  button { cursor: pointer; }
+  button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+  .row label { min-width: 190px; }
+  .flow { text-align: center; line-height: 1.9; border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .ok { color: #16a34a; } .ng { color: #dc2626; }
+  .scroll { max-height: 320px; overflow: auto; }
+</style>
 </head>
-<body><main class="wrap">
+<body>
+<main>
   <h1>大学 Rules as Code アシスタント</h1>
-  <p class="lead">学生情報と大学規則を組み合わせ、根拠に基づいて回答・通知する研究用プロトタイプ</p>
-  <div class="flow">質問 → Intent Detection → Rules as Code ＋ 学生データ → 決定論的判定 → 回答・通知</div>
+  <p class="muted">schema.org を基底とする共通オントロジー上のナレッジグラフと、大学規則（Rules as Code）から、
+  根拠付きで回答・通知する研究用プロトタイプ。LLM・APIキーは使用していません。</p>
+  <div class="flow">質問 → ルールベースIntent判定 → 共通オントロジー（schema.org ＋ CCSO） →
+  ナレッジグラフ ＋ Rules as Code → 決定論的判定 → 回答・通知（JSON-LD）</div>
 
   <h2>1. 学生選択</h2>
-  <label>対象の学生<select id="student"></select></label>
-  <div id="student-card" class="card" style="margin-top:14px"></div>
-  <div id="metrics" class="grid" style="margin-top:14px"></div>
+  <div class="row"><label for="student">対象の学生</label><select id="student"></select></div>
+  <div class="card" id="student-card"></div>
+  <div class="metrics" id="metrics"></div>
+  <p class="muted">単位数は <code>ccso:hasCompleted</code> / <code>ccso:hasRegistered</code> をたどって
+  <code>schema:numberOfCredits</code> を合計した導出値です。グラフに合計値は書かれていません。</p>
 
-  <h2>2. あなたへのお知らせ</h2><div id="notices"></div>
+  <h2>2. あなたへのお知らせ</h2>
+  <div id="notices"></div>
 
   <h2>3. 質問アシスタント</h2>
   <p class="muted">例：あと何単位履修できますか？ / 卒業できますか？ / 卒業研究を履修できますか？</p>
-  <form id="question-form" class="row"><label>質問してください<input id="question" value="卒業できますか？"></label><button>規則に基づいて判定</button></form>
-  <div id="answer" style="margin-top:15px"></div>
+  <form id="question-form" class="row">
+    <input id="question" size="42" placeholder="大学の規則について質問を入力">
+    <button class="primary" type="submit">規則に基づいて判定</button>
+  </form>
+  <div id="answer"></div>
 
   <h2>4. ルール管理</h2>
-  <section class="manager"><p class="muted">変更はこのブラウザに保存され、回答・通知へ即時反映されます。</p><div id="rule-status" class="status"></div>
-    <div id="rule-list" class="rule-list"></div>
-    <div class="tabs"><button class="tab active" data-tab="edit" type="button">編集・削除</button><button class="tab secondary" data-tab="add" type="button">個別通知を追加</button><button id="reset" class="secondary" type="button">初期状態に戻す</button></div>
-    <div id="edit-panel"></div><div id="add-panel" class="hidden"></div>
-  </section>
-  <p class="footer">APIキー不要 / LLM未使用 / デモ基準日：2026年04月13日<br>GitHub Pages版では編集データをブラウザのlocalStorageに保存します。</p>
+  <p class="muted" id="rule-status"></p>
+  <div id="rule-list"></div>
+  <div class="row">
+    <button id="reset">既定のルールに戻す</button>
+  </div>
+  <details id="edit-panel"><summary>ルールを編集・削除する</summary><div id="edit-body"></div></details>
+  <details id="add-panel"><summary>個別通知ルールを追加する</summary><div id="add-body"></div></details>
+
+  <h2>5. オントロジーとナレッジグラフ</h2>
+  <p class="muted" id="ontology-versions"></p>
+  <details><summary>語彙対応表（schema.org / CCSO / OLOUD）</summary>
+    <div id="crosswalk" class="scroll"></div>
+    <p class="muted">CCSO は <code>schema:Organization</code> / <code>schema:EducationalOrganization</code> を
+    直接再利用しており schema.org と併用できます。OLOUD は AIISO / FOAF / Dublin Core の上に構築されており
+    schema.org は使っていません。どちらも schema.org の一部ではありません。</p>
+  </details>
+  <details><summary>ローカル拡張用語（urd:）の定義</summary><div id="local-terms" class="scroll"></div></details>
+  <details><summary>ルール種別ごとのHorn節</summary><div id="horn-clauses"></div></details>
+  <details><summary>科目カタログ（schema:Course）</summary><div id="catalog" class="scroll"></div></details>
+  <p class="muted">このページには、下の <code>&lt;script type="application/ld+json"&gt;</code> として
+  ナレッジグラフそのものが埋め込まれています。ページを保存すればそのまま RDF ツールで読み込めます。</p>
+
+  <p class="muted">デモ基準日は <span id="eval-date"></span> に固定しています。
+  ルールの変更はこのブラウザの localStorage にのみ保存されます。</p>
 </main>
-<script>
-const students=[
- {student_id:'S001',name:'山田太郎',faculty:'工学部',grade:3,earned_credits:92,current_registered_credits:36,required_a:true,required_b:false,registration_completed:false},
- {student_id:'S002',name:'鈴木花子',faculty:'工学部',grade:4,earned_credits:118,current_registered_credits:20,required_a:true,required_b:true,registration_completed:true},
- {student_id:'S003',name:'佐藤次郎',faculty:'工学部',grade:4,earned_credits:126,current_registered_credits:12,required_a:true,required_b:true,registration_completed:false}
-];
-const defaults=[
- {rule_id:'RULE-REG-001',rule_type:'registration_deadline',title:'2026年度前期 履修登録期限',source:'2026年度履修規程 第5条',academic_year:2026,semester:'first',deadline:'2026-04-15'},
- {rule_id:'RULE-CREDIT-001',rule_type:'annual_credit_limit',title:'年間履修上限',source:'2026年度履修規程 第12条',max_credits:48},
- {rule_id:'RULE-GRAD-001',rule_type:'graduation_credit_requirement',title:'卒業必要単位数',source:'2026年度学則 第32条第1項',required_credits:124},
- {rule_id:'RULE-GRAD-002',rule_type:'graduation_required_courses',title:'卒業必修科目',source:'2026年度学則 第32条第2項',required_courses:['required_a','required_b']},
- {rule_id:'RULE-THESIS-001',rule_type:'thesis_eligibility',title:'卒業研究履修条件',source:'2026年度工学部履修細則 第18条',minimum_grade:4,minimum_earned_credits:100,required_courses:['required_a','required_b']}
-];
-const labels={registration_deadline:'履修登録期限',annual_credit_limit:'年間履修上限',graduation_credit_requirement:'卒業必要単位数',graduation_required_courses:'卒業必修科目',thesis_eligibility:'卒業研究履修条件',personalized_notification:'個別通知'};
-let rules=JSON.parse(localStorage.getItem('university_rules')||'null')||structuredClone(defaults);let student=students[0];
-const $=s=>document.querySelector(s), esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const rule=t=>rules.find(r=>r.rule_type===t), ref=r=>({rule_id:r.rule_id,title:r.title,source:r.source});
-function save(){localStorage.setItem('university_rules',JSON.stringify(rules));renderAll()}
-function result(status,message,rs=[],facts={},unmet=[]){return{status,message,rule_references:rs.map(ref),facts,unmet_conditions:unmet}}
-function graduation(s){const c=rule('graduation_credit_requirement'),q=rule('graduation_required_courses');if(!c||!q)return result('unknown','このプロトタイプに登録されているルールでは判定できません。');let u=[];if(s.earned_credits<c.required_credits)u.push(`卒業必要単位まで${c.required_credits-s.earned_credits}単位不足`);for(const k of q.required_courses)if(!s[k])u.push(`${k==='required_a'?'必修A':'必修B'}を未修得`);return result(u.length?'not_eligible':'eligible',u.length?'現時点の登録情報では卒業要件を満たしていません。':'現時点の登録情報では卒業要件を満たしています。',[c,q],{required_credits:c.required_credits,earned_credits:s.earned_credits,required_a:s.required_a,required_b:s.required_b},u)}
-function decide(q,s){const t=q.replace(/[\s　、。？！?!]/g,'');let r;if(/卒業研究|卒研/.test(t)){const x=rule('thesis_eligibility');if(!x)return unknown();let u=[];if(s.grade<x.minimum_grade)u.push(`${x.minimum_grade}年生以上ではない`);if(s.earned_credits<x.minimum_earned_credits)u.push(`修得単位が${x.minimum_earned_credits}単位未満`);for(const k of x.required_courses)if(!s[k])u.push(`${k==='required_a'?'必修A':'必修B'}を未修得`);r=result(u.length?'not_eligible':'eligible',u.length?`卒業研究を履修できません。不足条件：${u.join('、')}。`:'卒業研究を履修できます。',[x],{grade:s.grade,earned_credits:s.earned_credits,required_a:s.required_a,required_b:s.required_b},u)}
- else if(/(履修登録|登録).*(いつまで|期限|締切)/.test(t)){const x=rule('registration_deadline');r=x?result('info',`履修登録期限は${x.deadline.replace(/(\d{4})-(\d{2})-(\d{2})/,'$1年$2月$3日')}です。`,[x],{deadline:x.deadline}):unknown()}
- else if(/必修.*(足り|修得|取得|大丈夫|満た)/.test(t)){const x=rule('graduation_required_courses');if(!x)return unknown();const u=x.required_courses.filter(k=>!s[k]).map(k=>`${k==='required_a'?'必修A':'必修B'}を修得していない`);r=result(u.length?'not_eligible':'eligible',u.length?`卒業に必要な必修科目が不足しています：${u.join('、')}。`:'卒業に必要な必修科目をすべて修得しています。',[x],{required_a:s.required_a,required_b:s.required_b},u)}
- else if(/卒業.*単位.*(必要|何単位|いくつ)/.test(t)){const x=rule('graduation_credit_requirement');r=x?result('info',`卒業に必要な単位数は${x.required_credits}単位です。別途、必修科目要件もあります。`,[x],{required_credits:x.required_credits}):unknown()}
- else if(/卒業.*(でき|可能|満た|大丈夫|条件)/.test(t))r=graduation(s);
- else if(/単位.*(年間|上限).*(何|まで|上限)|年間.*単位/.test(t)){const x=rule('annual_credit_limit');r=x?result('info',`年間履修上限は${x.max_credits}単位です。`,[x],{annual_credit_limit:x.max_credits}):unknown()}
- else if(/(単位|履修).*(あと|残り|とれる|取れる|履修でき|まで)|あと.*単位/.test(t)){const x=rule('annual_credit_limit');if(!x)return unknown();const n=Math.max(0,x.max_credits-s.current_registered_credits);r=result('info',`現在、あと${n}単位履修できます。`,[x],{annual_credit_limit:x.max_credits,current_registered_credits:s.current_registered_credits,remaining_credits:n})}
- else r=unknown();return r}
-function unknown(){return result('unknown','このプロトタイプに登録されているルールでは判定できません。')}
-function basis(r){return `<details><summary>判定根拠</summary>${r.rule_references.length?r.rule_references.map(x=>`<p><b>${esc(x.rule_id)}</b> — ${esc(x.title)}<br><span class="muted">出典：${esc(x.source)}</span></p>`).join(''):'<p>適用できる登録済みルールはありません。</p>'}<b>判定に使用した事実</b><pre>${esc(JSON.stringify(r.facts,null,2))}</pre>${r.unmet_conditions.length?`<b>満たしていない条件</b><ul>${r.unmet_conditions.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}</details>`}
-function compare(a,o,b){return{'==':a==b,'!=':a!=b,'>=':a>=b,'<=':a<=b,'>':a>b,'<':a<b}[o]}
-function renderNotices(){let ns=[];const d=rule('registration_deadline');if(!student.registration_completed&&d){ns.push(['warning','履修登録未完了',`履修登録が完了していません。期限は${d.deadline}です。`,result('info','',[d],{registration_completed:false,deadline:d.deadline})]);if((new Date(d.deadline)-new Date('2026-04-13'))/86400000<=3)ns.push(['error','履修登録期限接近','履修登録期限が近づいています。',result('info','',[d],{deadline:d.deadline})])}if(student.grade>=4){const g=graduation(student);ns.push([g.status==='eligible'?'success':'warning',g.status==='eligible'?'卒業要件充足':'卒業要件不足',g.message+(g.unmet_conditions.length?' 不足：'+g.unmet_conditions.join('、')+'。':''),g])}for(const x of rules.filter(x=>x.rule_type==='personalized_notification'&&x.enabled!==false))if((x.conditions||[]).every(c=>compare(student[c.field],c.operator,c.value)))ns.push([x.level||'info',x.title,x.message,result('info',x.message,[x],Object.fromEntries(x.conditions.map(c=>[c.field,{actual:student[c.field],operator:c.operator,expected:c.value}])))]);$('#notices').innerHTML=ns.length?ns.map(n=>`<div class="notice ${n[0]}"><b>${esc(n[1])}</b><br>${esc(n[2])}${basis(n[3])}</div>`).join(''):'<div class="notice">現在、あなたへの個別のお知らせはありません。</div>'}
-function renderStudent(){student=students.find(s=>s.student_id===$('#student').value)||students[0];$('#student-card').innerHTML=`<b>${student.name}</b>（${student.student_id}）｜ ${student.faculty} ${student.grade}年`;$('#metrics').innerHTML=[['修得単位',student.earned_credits+' 単位'],['現在履修登録',student.current_registered_credits+' 単位'],['必修A / 必修B',`${student.required_a?'済':'未'} / ${student.required_b?'済':'未'}`],['履修登録',student.registration_completed?'完了':'未完了']].map(x=>`<div class="card metric"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join('');renderNotices();$('#answer').innerHTML=''}
-function renderRules(){const rows=rules.map(r=>`<tr><td><code>${esc(r.rule_id)}</code></td><td>${esc(labels[r.rule_type]||r.rule_type)}</td><td>${esc(r.title)}</td><td>${esc(r.source)}</td></tr>`).join('');$('#rule-list').innerHTML=`<table class="rule-table"><thead><tr><th>ID</th><th>種別</th><th>ルール名</th><th>根拠</th></tr></thead><tbody>${rows}</tbody></table>`;$('#edit-panel').innerHTML=`<label>編集するルール<select id="edit-select">${rules.map((r,i)=>`<option value="${i}">${esc(r.rule_id)} — ${esc(r.title)}</option>`).join('')}</select></label><div id="edit-form"></div>`;$('#edit-select').onchange=renderEdit;renderEdit();renderAdd()}
-function commonFields(r){return `<div class="row"><label>ルールID<input name="rule_id" value="${esc(r.rule_id||'')}"></label><label>ルール名<input name="title" value="${esc(r.title||'')}"></label></div><label>根拠・出典<input name="source" value="${esc(r.source||'')}"></label>`}
-function specific(r){if(r.rule_type==='registration_deadline')return `<div class="row"><label>年度<input name="academic_year" type="number" value="${r.academic_year}"></label><label>期限<input name="deadline" type="date" value="${r.deadline}"></label></div>`;if(r.rule_type==='annual_credit_limit')return `<label>年間履修上限<input name="max_credits" type="number" min="1" value="${r.max_credits}"></label>`;if(r.rule_type==='graduation_credit_requirement')return `<label>卒業必要単位数<input name="required_credits" type="number" min="1" value="${r.required_credits}"></label>`;if(r.rule_type==='graduation_required_courses')return checks(r);if(r.rule_type==='thesis_eligibility')return `<div class="row"><label>最低学年<input name="minimum_grade" type="number" min="1" value="${r.minimum_grade}"></label><label>最低修得単位数<input name="minimum_earned_credits" type="number" min="0" value="${r.minimum_earned_credits}"></label></div>${checks(r)}`;return `<label><input name="enabled" type="checkbox" ${r.enabled!==false?'checked':''}> 有効</label><label>通知本文<textarea name="message">${esc(r.message||'')}</textarea></label><label>通知レベル<select name="level">${['info','success','warning','error'].map(x=>`<option ${r.level===x?'selected':''}>${x}</option>`).join('')}</select></label>${conditionsHtml(r.conditions||[])}`}
-function checks(r){return `<fieldset><legend>必修科目</legend><label><input type="checkbox" name="required_a" ${(r.required_courses||[]).includes('required_a')?'checked':''}>必修A</label>　<label><input type="checkbox" name="required_b" ${(r.required_courses||[]).includes('required_b')?'checked':''}>必修B</label></fieldset>`}
-function conditionsHtml(cs){return `<div class="condition-list">${cs.map((c,i)=>conditionRow(c,i)).join('')}</div><button type="button" class="secondary add-condition">条件を追加</button>`}
-function conditionRow(c={field:'grade',operator:'>=',value:4},i=0){return `<div class="conditions"><select data-k="field">${['grade','earned_credits','current_registered_credits','required_a','required_b','registration_completed'].map(x=>`<option ${c.field===x?'selected':''}>${x}</option>`).join('')}</select><select data-k="operator">${['==','!=','>=','<=','>','<'].map(x=>`<option ${c.operator===x?'selected':''}>${x}</option>`).join('')}</select><input data-k="value" value="${esc(c.value)}"><button type="button" class="danger remove-condition">削除</button></div>`}
-function renderEdit(){const i=+$('#edit-select').value,r=rules[i];$('#edit-form').innerHTML=`<form id="edit-rule">${commonFields(r)}${specific(r)}<div style="margin-top:12px"><button>変更を保存</button> <button type="button" id="delete-rule" class="danger">削除</button></div></form>`;wireForm($('#edit-rule'),r,updated=>{rules[i]=updated;save();message(`${updated.rule_id}を更新しました。`)});$('#delete-rule').onclick=()=>{if(confirm(`${r.rule_id}を削除しますか？`)){rules.splice(i,1);save();message(`${r.rule_id}を削除しました。`)}}}
-function renderAdd(){const r={rule_id:`RULE-NOTICE-${String(rules.filter(x=>x.rule_type==='personalized_notification').length+1).padStart(3,'0')}`,rule_type:'personalized_notification',title:'',source:'管理画面で追加',enabled:true,message:'',level:'info',conditions:[{field:'grade',operator:'>=',value:4}]};$('#add-panel').innerHTML=`<form id="add-rule">${commonFields(r)}${specific(r)}<div style="margin-top:12px"><button>個別通知を追加</button></div></form>`;wireForm($('#add-rule'),r,added=>{if(rules.some(x=>x.rule_id===added.rule_id))throw Error('同じルールIDが存在します。');rules.push(added);save();message(`${added.rule_id}を追加しました。`)})}
-function wireForm(form,base,done){const add=form.querySelector('.add-condition');if(add)add.onclick=()=>{form.querySelector('.condition-list').insertAdjacentHTML('beforeend',conditionRow())};form.onclick=e=>{if(e.target.classList.contains('remove-condition'))e.target.closest('.conditions').remove()};form.onsubmit=e=>{e.preventDefault();try{const fd=new FormData(form),r={...base,rule_id:fd.get('rule_id').trim().toUpperCase(),title:fd.get('title').trim(),source:fd.get('source').trim()};if(!/^[A-Z0-9][A-Z0-9_-]*$/.test(r.rule_id)||!r.title||!r.source)throw Error('ID・ルール名・根拠を正しく入力してください。');for(const k of ['academic_year','max_credits','required_credits','minimum_grade','minimum_earned_credits'])if(fd.has(k))r[k]=+fd.get(k);if(fd.has('deadline'))r.deadline=fd.get('deadline');if(['graduation_required_courses','thesis_eligibility'].includes(r.rule_type)){r.required_courses=['required_a','required_b'].filter(k=>fd.has(k));if(!r.required_courses.length)throw Error('必修科目を1件以上選択してください。')}if(r.rule_type==='personalized_notification'){r.enabled=fd.has('enabled');r.message=fd.get('message').trim();r.level=fd.get('level');r.conditions=[...form.querySelectorAll('.conditions')].map(row=>{let o={};row.querySelectorAll('[data-k]').forEach(x=>o[x.dataset.k]=x.value);if(['required_a','required_b','registration_completed'].includes(o.field))o.value=/^(true|はい|1)$/i.test(o.value);else o.value=+o.value;return o});if(!r.message||!r.conditions.length)throw Error('通知本文と条件が必要です。')}done(r)}catch(x){message(x.message,true)}}}
-function message(t,bad=false){$('#rule-status').textContent=t;$('#rule-status').style.color=bad?'#d33':'var(--brand)'}
-function renderAll(){renderStudent();renderRules()}
-$('#student').innerHTML=students.map(s=>`<option value="${s.student_id}">${s.student_id} ${s.name}</option>`).join('');$('#student').onchange=renderStudent;$('#question-form').onsubmit=e=>{e.preventDefault();const r=decide($('#question').value,student);$('#answer').innerHTML=`<div class="answer ${r.status==='eligible'?'notice success':r.status==='not_eligible'?'notice error':r.status==='unknown'?'notice warning':''}"><b>回答</b><p>${esc(r.message)}</p>${basis(r)}</div>`};document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));$('#edit-panel').classList.toggle('hidden',b.dataset.tab!=='edit');$('#add-panel').classList.toggle('hidden',b.dataset.tab!=='add')});$('#reset').onclick=()=>{if(confirm('ルールを初期状態に戻しますか？')){rules=structuredClone(defaults);localStorage.removeItem('university_rules');renderAll();message('初期状態に戻しました。')}};renderAll();
-</script></body></html>
+
+<!-- BEGIN knowledge-graph (generated by scripts/sync_docs_data.py from data/university_graph.jsonld) -->
+<script type="application/ld+json" id="knowledge-graph">
+{
+  "@context": {
+    "schema": "https://schema.org/",
+    "ccso": "https://w3id.org/ccso/ccso#",
+    "oloud": "http://lod.nik.uni-obuda.hu/oloud/oloud#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "urd": "https://brightwaltz.github.io/university-rules-demo/ns#",
+    "urdi": "https://brightwaltz.github.io/university-rules-demo/id/"
+  },
+  "@graph": [
+    {
+      "@id": "urdi:organization/demo-university",
+      "@type": [
+        "schema:CollegeOrUniversity",
+        "ccso:University"
+      ],
+      "schema:name": "デモ工科大学",
+      "schema:description": "研究用デモのための架空の大学。実在の大学ではない。"
+    },
+    {
+      "@id": "urdi:organization/engineering",
+      "@type": [
+        "schema:EducationalOrganization",
+        "ccso:School"
+      ],
+      "schema:name": "工学部",
+      "schema:parentOrganization": {
+        "@id": "urdi:organization/demo-university"
+      }
+    },
+    {
+      "@id": "urdi:credential/bachelor-engineering",
+      "@type": "schema:EducationalOccupationalCredential",
+      "schema:name": "学士（工学）",
+      "schema:credentialCategory": "bachelor degree",
+      "schema:educationalLevel": "学士課程",
+      "schema:recognizedBy": {
+        "@id": "urdi:organization/demo-university"
+      }
+    },
+    {
+      "@id": "urdi:program/engineering-2026",
+      "@type": [
+        "schema:EducationalOccupationalProgram",
+        "ccso:ProgramofStudy"
+      ],
+      "schema:name": "工学部 学士課程（2026年度）",
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "schema:termsPerYear": 2,
+      "schema:educationalCredentialAwarded": {
+        "@id": "urdi:credential/bachelor-engineering"
+      },
+      "ccso:academicYear": "2026",
+      "rdfs:comment": "卒業必要単位数・年間履修上限・履修登録期限・必修科目は data/rules.yaml が保持する。"
+    },
+    {
+      "@id": "urdi:terms/course-category",
+      "@type": "schema:DefinedTermSet",
+      "schema:name": "科目区分"
+    },
+    {
+      "@id": "urdi:term/general-education",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "教養科目",
+      "schema:termCode": "GEN",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:term/foundational",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "専門基礎科目",
+      "schema:termCode": "FND",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:term/specialized",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "専門科目",
+      "schema:termCode": "SPC",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:term/required",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "必修科目",
+      "schema:termCode": "REQ",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:term/thesis",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "卒業研究",
+      "schema:termCode": "THESIS",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-01",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "哲学入門",
+      "schema:courseCode": "GEN-01",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-02",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "倫理学",
+      "schema:courseCode": "GEN-02",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-03",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "心理学概論",
+      "schema:courseCode": "GEN-03",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-04",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "社会学概論",
+      "schema:courseCode": "GEN-04",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-05",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "経済学入門",
+      "schema:courseCode": "GEN-05",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-06",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "歴史学概論",
+      "schema:courseCode": "GEN-06",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-07",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "文学と表現",
+      "schema:courseCode": "GEN-07",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-08",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "日本国憲法",
+      "schema:courseCode": "GEN-08",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-09",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "統計入門",
+      "schema:courseCode": "GEN-09",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-10",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "情報倫理",
+      "schema:courseCode": "GEN-10",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-11",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "科学技術史",
+      "schema:courseCode": "GEN-11",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-12",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "英語コミュニケーションⅠ",
+      "schema:courseCode": "GEN-12",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-13",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "英語コミュニケーションⅡ",
+      "schema:courseCode": "GEN-13",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-14",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "英語リーディング",
+      "schema:courseCode": "GEN-14",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-15",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "第二外国語Ⅰ",
+      "schema:courseCode": "GEN-15",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-16",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "第二外国語Ⅱ",
+      "schema:courseCode": "GEN-16",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-17",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "健康科学",
+      "schema:courseCode": "GEN-17",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-18",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "スポーツ実習",
+      "schema:courseCode": "GEN-18",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-19",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "環境と社会",
+      "schema:courseCode": "GEN-19",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-20",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "キャリアデザイン",
+      "schema:courseCode": "GEN-20",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-21",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "データと社会",
+      "schema:courseCode": "GEN-21",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-22",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "異文化理解",
+      "schema:courseCode": "GEN-22",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-23",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "芸術鑑賞論",
+      "schema:courseCode": "GEN-23",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-24",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ボランティア実践",
+      "schema:courseCode": "GEN-24",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-01",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "微分積分学Ⅰ",
+      "schema:courseCode": "FND-01",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-02",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "微分積分学Ⅱ",
+      "schema:courseCode": "FND-02",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-03",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "線形代数学Ⅰ",
+      "schema:courseCode": "FND-03",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-04",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "線形代数学Ⅱ",
+      "schema:courseCode": "FND-04",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-05",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "物理学Ⅰ",
+      "schema:courseCode": "FND-05",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-06",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "物理学Ⅱ",
+      "schema:courseCode": "FND-06",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-07",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "化学基礎",
+      "schema:courseCode": "FND-07",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-08",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "確率統計",
+      "schema:courseCode": "FND-08",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-09",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "プログラミング基礎",
+      "schema:courseCode": "FND-09",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-10",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "プログラミング演習",
+      "schema:courseCode": "FND-10",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-11",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "離散数学",
+      "schema:courseCode": "FND-11",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-12",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "電気回路",
+      "schema:courseCode": "FND-12",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-13",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "論理回路",
+      "schema:courseCode": "FND-13",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-14",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "微分方程式",
+      "schema:courseCode": "FND-14",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-01",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "データ構造とアルゴリズム",
+      "schema:courseCode": "SPC-01",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-02",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "オペレーティングシステム",
+      "schema:courseCode": "SPC-02",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-03",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "コンピュータアーキテクチャ",
+      "schema:courseCode": "SPC-03",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-04",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "データベース論",
+      "schema:courseCode": "SPC-04",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-05",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ネットワーク工学",
+      "schema:courseCode": "SPC-05",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-06",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ソフトウェア工学",
+      "schema:courseCode": "SPC-06",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-07",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "人工知能概論",
+      "schema:courseCode": "SPC-07",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-08",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "機械学習",
+      "schema:courseCode": "SPC-08",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-09",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "信号処理",
+      "schema:courseCode": "SPC-09",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-10",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "制御工学",
+      "schema:courseCode": "SPC-10",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-11",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "画像処理",
+      "schema:courseCode": "SPC-11",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-12",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "自然言語処理",
+      "schema:courseCode": "SPC-12",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-13",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "情報セキュリティ",
+      "schema:courseCode": "SPC-13",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-14",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "分散システム",
+      "schema:courseCode": "SPC-14",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-15",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ヒューマンインタフェース",
+      "schema:courseCode": "SPC-15",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-16",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "知識工学",
+      "schema:courseCode": "SPC-16",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-17",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "セマンティックウェブ",
+      "schema:courseCode": "SPC-17",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-18",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "数値解析",
+      "schema:courseCode": "SPC-18",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-19",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "最適化理論",
+      "schema:courseCode": "SPC-19",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-20",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "計算機統計",
+      "schema:courseCode": "SPC-20",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-21",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "組込みシステム",
+      "schema:courseCode": "SPC-21",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-22",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ロボティクス",
+      "schema:courseCode": "SPC-22",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-23",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "プロジェクト演習Ⅰ",
+      "schema:courseCode": "SPC-23",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-24",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "プロジェクト演習Ⅱ",
+      "schema:courseCode": "SPC-24",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/REQ-A",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "必修A",
+      "schema:courseCode": "REQ-A",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/required"
+      }
+    },
+    {
+      "@id": "urdi:course/REQ-B",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "必修B",
+      "schema:courseCode": "REQ-B",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/required"
+      }
+    },
+    {
+      "@id": "urdi:course/THESIS",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "卒業研究",
+      "schema:courseCode": "THESIS",
+      "schema:numberOfCredits": 8,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/thesis"
+      }
+    },
+    {
+      "@id": "urdi:legislation/gakusoku-2026",
+      "@type": "schema:Legislation",
+      "schema:name": "2026年度学則",
+      "schema:legislationIdentifier": "学則",
+      "schema:legislationType": "学則",
+      "schema:legislationDate": {
+        "@value": "2026-04-01",
+        "@type": "xsd:date"
+      },
+      "schema:legislationJurisdiction": {
+        "@id": "urdi:organization/demo-university"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/gakusoku-2026/art32-1",
+      "@type": "schema:Legislation",
+      "schema:name": "卒業に必要な単位数",
+      "schema:legislationIdentifier": "第32条第1項",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/gakusoku-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/gakusoku-2026/art32-2",
+      "@type": "schema:Legislation",
+      "schema:name": "卒業に必要な必修科目",
+      "schema:legislationIdentifier": "第32条第2項",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/gakusoku-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/risyu-kitei-2026",
+      "@type": "schema:Legislation",
+      "schema:name": "2026年度履修規程",
+      "schema:legislationIdentifier": "履修規程",
+      "schema:legislationType": "規程",
+      "schema:legislationDate": {
+        "@value": "2026-04-01",
+        "@type": "xsd:date"
+      },
+      "schema:legislationJurisdiction": {
+        "@id": "urdi:organization/demo-university"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/risyu-kitei-2026/art5",
+      "@type": "schema:Legislation",
+      "schema:name": "履修登録の期限",
+      "schema:legislationIdentifier": "第5条",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/risyu-kitei-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/risyu-kitei-2026/art12",
+      "@type": "schema:Legislation",
+      "schema:name": "年間の履修登録単位数の上限",
+      "schema:legislationIdentifier": "第12条",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/risyu-kitei-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/kougakubu-saisoku-2026",
+      "@type": "schema:Legislation",
+      "schema:name": "2026年度工学部履修細則",
+      "schema:legislationIdentifier": "工学部履修細則",
+      "schema:legislationType": "細則",
+      "schema:legislationDate": {
+        "@value": "2026-04-01",
+        "@type": "xsd:date"
+      },
+      "schema:legislationJurisdiction": {
+        "@id": "urdi:organization/demo-university"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/kougakubu-saisoku-2026/art18",
+      "@type": "schema:Legislation",
+      "schema:name": "卒業研究の履修条件",
+      "schema:legislationIdentifier": "第18条",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/kougakubu-saisoku-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:student/S001",
+      "@type": [
+        "schema:Person",
+        "ccso:UndergraduateStudent"
+      ],
+      "schema:identifier": "S001",
+      "schema:name": "山田太郎",
+      "schema:affiliation": {
+        "@id": "urdi:organization/engineering"
+      },
+      "ccso:enrolledIn": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "urd:yearOfStudy": 3,
+      "ccso:hasCompleted": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        },
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        },
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        }
+      ],
+      "ccso:hasRegistered": [
+        {
+          "@id": "urdi:course/FND-13"
+        },
+        {
+          "@id": "urdi:course/FND-14"
+        },
+        {
+          "@id": "urdi:course/SPC-01"
+        },
+        {
+          "@id": "urdi:course/SPC-02"
+        },
+        {
+          "@id": "urdi:course/SPC-03"
+        },
+        {
+          "@id": "urdi:course/SPC-04"
+        },
+        {
+          "@id": "urdi:course/SPC-05"
+        },
+        {
+          "@id": "urdi:course/SPC-06"
+        },
+        {
+          "@id": "urdi:course/SPC-07"
+        },
+        {
+          "@id": "urdi:course/SPC-08"
+        },
+        {
+          "@id": "urdi:course/SPC-09"
+        },
+        {
+          "@id": "urdi:course/SPC-10"
+        },
+        {
+          "@id": "urdi:course/SPC-11"
+        },
+        {
+          "@id": "urdi:course/SPC-12"
+        },
+        {
+          "@id": "urdi:course/SPC-13"
+        },
+        {
+          "@id": "urdi:course/SPC-14"
+        }
+      ]
+    },
+    {
+      "@id": "urdi:action/S001/registration-2026-first",
+      "@type": "schema:RegisterAction",
+      "schema:name": "2026年度前期 履修登録",
+      "schema:agent": {
+        "@id": "urdi:student/S001"
+      },
+      "schema:object": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "schema:actionStatus": {
+        "@id": "schema:PotentialActionStatus"
+      },
+      "ccso:academicYear": "2026",
+      "urd:semester": "first"
+    },
+    {
+      "@id": "urdi:student/S002",
+      "@type": [
+        "schema:Person",
+        "ccso:UndergraduateStudent"
+      ],
+      "schema:identifier": "S002",
+      "schema:name": "鈴木花子",
+      "schema:affiliation": {
+        "@id": "urdi:organization/engineering"
+      },
+      "ccso:enrolledIn": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "urd:yearOfStudy": 4,
+      "ccso:hasCompleted": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/REQ-B"
+        },
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        },
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/GEN-21"
+        },
+        {
+          "@id": "urdi:course/GEN-22"
+        },
+        {
+          "@id": "urdi:course/GEN-23"
+        },
+        {
+          "@id": "urdi:course/GEN-24"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        },
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        },
+        {
+          "@id": "urdi:course/FND-13"
+        },
+        {
+          "@id": "urdi:course/FND-14"
+        },
+        {
+          "@id": "urdi:course/SPC-01"
+        },
+        {
+          "@id": "urdi:course/SPC-02"
+        },
+        {
+          "@id": "urdi:course/SPC-03"
+        }
+      ],
+      "ccso:hasRegistered": [
+        {
+          "@id": "urdi:course/SPC-04"
+        },
+        {
+          "@id": "urdi:course/SPC-05"
+        },
+        {
+          "@id": "urdi:course/SPC-06"
+        },
+        {
+          "@id": "urdi:course/SPC-07"
+        },
+        {
+          "@id": "urdi:course/SPC-08"
+        },
+        {
+          "@id": "urdi:course/SPC-09"
+        },
+        {
+          "@id": "urdi:course/SPC-10"
+        },
+        {
+          "@id": "urdi:course/SPC-11"
+        },
+        {
+          "@id": "urdi:course/SPC-12"
+        },
+        {
+          "@id": "urdi:course/SPC-13"
+        }
+      ]
+    },
+    {
+      "@id": "urdi:action/S002/registration-2026-first",
+      "@type": "schema:RegisterAction",
+      "schema:name": "2026年度前期 履修登録",
+      "schema:agent": {
+        "@id": "urdi:student/S002"
+      },
+      "schema:object": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2026",
+      "urd:semester": "first"
+    },
+    {
+      "@id": "urdi:student/S003",
+      "@type": [
+        "schema:Person",
+        "ccso:UndergraduateStudent"
+      ],
+      "schema:identifier": "S003",
+      "schema:name": "佐藤次郎",
+      "schema:affiliation": {
+        "@id": "urdi:organization/engineering"
+      },
+      "ccso:enrolledIn": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "urd:yearOfStudy": 4,
+      "ccso:hasCompleted": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/REQ-B"
+        },
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        },
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/GEN-21"
+        },
+        {
+          "@id": "urdi:course/GEN-22"
+        },
+        {
+          "@id": "urdi:course/GEN-23"
+        },
+        {
+          "@id": "urdi:course/GEN-24"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        },
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        },
+        {
+          "@id": "urdi:course/FND-13"
+        },
+        {
+          "@id": "urdi:course/FND-14"
+        },
+        {
+          "@id": "urdi:course/SPC-01"
+        },
+        {
+          "@id": "urdi:course/SPC-02"
+        },
+        {
+          "@id": "urdi:course/SPC-03"
+        },
+        {
+          "@id": "urdi:course/SPC-04"
+        },
+        {
+          "@id": "urdi:course/SPC-05"
+        },
+        {
+          "@id": "urdi:course/SPC-06"
+        },
+        {
+          "@id": "urdi:course/SPC-07"
+        }
+      ],
+      "ccso:hasRegistered": [
+        {
+          "@id": "urdi:course/THESIS"
+        },
+        {
+          "@id": "urdi:course/SPC-08"
+        },
+        {
+          "@id": "urdi:course/SPC-09"
+        }
+      ]
+    },
+    {
+      "@id": "urdi:action/S003/registration-2026-first",
+      "@type": "schema:RegisterAction",
+      "schema:name": "2026年度前期 履修登録",
+      "schema:agent": {
+        "@id": "urdi:student/S003"
+      },
+      "schema:object": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "schema:actionStatus": {
+        "@id": "schema:PotentialActionStatus"
+      },
+      "ccso:academicYear": "2026",
+      "urd:semester": "first"
+    }
+  ]
+}
+</script>
+<!-- END knowledge-graph -->
+
+<!-- BEGIN default-rules (generated by scripts/sync_docs_data.py from data/rules.yaml) -->
+<script type="application/json" id="default-rules">
+{
+ "settings": {
+  "evaluation_date": "2026-04-13"
+ },
+ "rules": [
+  {
+   "rule_id": "RULE-REG-001",
+   "rule_type": "registration_deadline",
+   "title": "2026年度前期 履修登録期限",
+   "source": "2026年度履修規程 第5条",
+   "subject": "urdi:program/engineering-2026",
+   "legislation": "urdi:legislation/risyu-kitei-2026/art5",
+   "academic_year": 2026,
+   "semester": "first",
+   "deadline": "2026-04-15"
+  },
+  {
+   "rule_id": "RULE-CREDIT-001",
+   "rule_type": "annual_credit_limit",
+   "title": "年間履修上限",
+   "source": "2026年度履修規程 第12条",
+   "subject": "urdi:program/engineering-2026",
+   "legislation": "urdi:legislation/risyu-kitei-2026/art12",
+   "max_credits": 48
+  },
+  {
+   "rule_id": "RULE-GRAD-001",
+   "rule_type": "graduation_credit_requirement",
+   "title": "卒業必要単位数",
+   "source": "2026年度学則 第32条第1項",
+   "subject": "urdi:program/engineering-2026",
+   "legislation": "urdi:legislation/gakusoku-2026/art32-1",
+   "required_credits": 124
+  },
+  {
+   "rule_id": "RULE-GRAD-002",
+   "rule_type": "graduation_required_courses",
+   "title": "卒業必修科目",
+   "source": "2026年度学則 第32条第2項",
+   "subject": "urdi:program/engineering-2026",
+   "legislation": "urdi:legislation/gakusoku-2026/art32-2",
+   "required_courses": [
+    "REQ-A",
+    "REQ-B"
+   ]
+  },
+  {
+   "rule_id": "RULE-THESIS-001",
+   "rule_type": "thesis_eligibility",
+   "title": "卒業研究履修条件",
+   "source": "2026年度工学部履修細則 第18条",
+   "subject": "urdi:course/THESIS",
+   "legislation": "urdi:legislation/kougakubu-saisoku-2026/art18",
+   "minimum_year_of_study": 4,
+   "minimum_earned_credits": 100,
+   "required_courses": [
+    "REQ-A",
+    "REQ-B"
+   ]
+  }
+ ]
+}
+</script>
+<!-- END default-rules -->
+
+<!-- BEGIN ontology (generated by scripts/sync_docs_data.py from src/ontology.py) -->
+<script type="application/json" id="ontology">
+{
+ "schema_org_version": "30.0",
+ "ccso_version": "0.7",
+ "context": {
+  "schema": "https://schema.org/",
+  "ccso": "https://w3id.org/ccso/ccso#",
+  "oloud": "http://lod.nik.uni-obuda.hu/oloud/oloud#",
+  "skos": "http://www.w3.org/2004/02/skos/core#",
+  "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+  "xsd": "http://www.w3.org/2001/XMLSchema#",
+  "urd": "https://brightwaltz.github.io/university-rules-demo/ns#",
+  "urdi": "https://brightwaltz.github.io/university-rules-demo/id/"
+ },
+ "rule_types": {
+  "registration_deadline": {
+   "label": "履修登録期限",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "deadline": "schema:applicationDeadline"
+   },
+   "terms": [
+    "schema:EducationalOccupationalProgram",
+    "schema:applicationDeadline",
+    "urd:evaluationDate"
+   ],
+   "horn_clause": "registration_deadline(Program, Deadline, DaysLeft) :- schema:applicationDeadline(Program, Deadline), urd:evaluationDate(Today), DaysLeft is Deadline - Today."
+  },
+  "annual_credit_limit": {
+   "label": "年間履修上限",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "max_credits": "urd:annualCreditLimit"
+   },
+   "terms": [
+    "schema:EducationalOccupationalProgram",
+    "urd:annualCreditLimit",
+    "ccso:hasRegistered",
+    "schema:numberOfCredits"
+   ],
+   "horn_clause": "remaining_credits(Student, Remaining) :- ccso:enrolledIn(Student, Program), urd:annualCreditLimit(Program, Limit), urd:registeredCredits(Student, Registered), Remaining is max(0, Limit - Registered)."
+  },
+  "graduation_credit_requirement": {
+   "label": "卒業必要単位数",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "required_credits": "schema:numberOfCredits"
+   },
+   "terms": [
+    "schema:EducationalOccupationalProgram",
+    "schema:numberOfCredits",
+    "urd:earnedCredits"
+   ],
+   "horn_clause": "meets_credit_requirement(Student) :- ccso:enrolledIn(Student, Program), schema:numberOfCredits(Program, Required), urd:earnedCredits(Student, Earned), Earned >= Required."
+  },
+  "graduation_required_courses": {
+   "label": "卒業必修科目",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "required_courses": "urd:requiredCourse"
+   },
+   "terms": [
+    "schema:EducationalOccupationalProgram",
+    "urd:requiredCourse",
+    "ccso:hasCompleted"
+   ],
+   "horn_clause": "meets_course_requirement(Student) :- ccso:enrolledIn(Student, Program), forall(urd:requiredCourse(Program, Course), ccso:hasCompleted(Student, Course))."
+  },
+  "thesis_eligibility": {
+   "label": "卒業研究履修条件",
+   "subject_class": "schema:Course",
+   "rule_terms": {
+    "required_courses": "schema:coursePrerequisites",
+    "minimum_year_of_study": "urd:minimumYearOfStudy",
+    "minimum_earned_credits": "urd:minimumEarnedCredits"
+   },
+   "terms": [
+    "schema:Course",
+    "schema:coursePrerequisites",
+    "urd:minimumYearOfStudy",
+    "urd:minimumEarnedCredits",
+    "urd:yearOfStudy",
+    "urd:earnedCredits",
+    "ccso:hasCompleted"
+   ],
+   "horn_clause": "eligible_to_register(Student, Thesis) :- urd:minimumYearOfStudy(Thesis, MinYear), urd:yearOfStudy(Student, Year), Year >= MinYear, urd:minimumEarnedCredits(Thesis, MinCredits), urd:earnedCredits(Student, Earned), Earned >= MinCredits, forall(schema:coursePrerequisites(Thesis, Course), ccso:hasCompleted(Student, Course))."
+  },
+  "personalized_notification": {
+   "label": "個別通知ルール",
+   "subject_class": "schema:Person",
+   "rule_terms": {
+    "message": "schema:text",
+    "level": "urd:notificationLevel"
+   },
+   "terms": [
+    "schema:Person",
+    "schema:text",
+    "urd:notificationLevel"
+   ],
+   "horn_clause": "notify(Student, Message) :- condition_1(Student), ..., condition_n(Student), schema:text(Rule, Message)."
+  }
+ },
+ "condition_terms": {
+  "urd:yearOfStudy": {
+   "type": "int",
+   "label": "学年"
+  },
+  "urd:earnedCredits": {
+   "type": "int",
+   "label": "修得単位数"
+  },
+  "urd:registeredCredits": {
+   "type": "int",
+   "label": "履修登録単位数"
+  },
+  "schema:actionStatus": {
+   "type": "bool",
+   "label": "履修登録の完了状態"
+  },
+  "ccso:hasCompleted": {
+   "type": "list",
+   "label": "修得済み科目"
+  },
+  "ccso:hasRegistered": {
+   "type": "list",
+   "label": "履修登録済み科目"
+  }
+ },
+ "crosswalk": [
+  {
+   "concept": "大学",
+   "demo": "schema:CollegeOrUniversity",
+   "schema_org": "schema:CollegeOrUniversity",
+   "ccso": "ccso:University",
+   "oloud": "（aiiso 経由）"
+  },
+  {
+   "concept": "学部",
+   "demo": "schema:EducationalOrganization",
+   "schema_org": "schema:EducationalOrganization",
+   "ccso": "ccso:School",
+   "oloud": "aiiso:Department"
+  },
+  {
+   "concept": "課程・プログラム",
+   "demo": "schema:EducationalOccupationalProgram",
+   "schema_org": "schema:EducationalOccupationalProgram",
+   "ccso": "ccso:ProgramofStudy",
+   "oloud": "oloud:studyProgramme"
+  },
+  {
+   "concept": "科目",
+   "demo": "schema:Course",
+   "schema_org": "schema:Course",
+   "ccso": "ccso:Course",
+   "oloud": "aiiso:Subject / aiiso:Course"
+  },
+  {
+   "concept": "単位数",
+   "demo": "schema:numberOfCredits",
+   "schema_org": "schema:numberOfCredits",
+   "ccso": "ccso:creditsECTS",
+   "oloud": "oloud:subjectCredit"
+  },
+  {
+   "concept": "科目コード",
+   "demo": "schema:courseCode",
+   "schema_org": "schema:courseCode",
+   "ccso": "ccso:code",
+   "oloud": "aiiso:code"
+  },
+  {
+   "concept": "学生",
+   "demo": "schema:Person + ccso:UndergraduateStudent",
+   "schema_org": "schema:Person",
+   "ccso": "ccso:Student / ccso:UndergraduateStudent",
+   "oloud": "foaf:Person"
+  },
+  {
+   "concept": "在籍",
+   "demo": "ccso:enrolledIn",
+   "schema_org": "（該当なし）",
+   "ccso": "ccso:enrolledIn",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "修得済み科目",
+   "demo": "ccso:hasCompleted",
+   "schema_org": "（該当なし）",
+   "ccso": "ccso:hasCompleted",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "履修登録済み科目",
+   "demo": "ccso:hasRegistered",
+   "schema_org": "（該当なし）",
+   "ccso": "ccso:hasRegistered",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "履修登録という行為と其の状態",
+   "demo": "schema:RegisterAction + schema:actionStatus",
+   "schema_org": "schema:RegisterAction / schema:actionStatus",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "履修登録期限",
+   "demo": "schema:applicationDeadline",
+   "schema_org": "schema:applicationDeadline",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "学位",
+   "demo": "schema:EducationalOccupationalCredential",
+   "schema_org": "schema:EducationalOccupationalCredential",
+   "ccso": "ccso:Bachelor / ccso:hasDegree",
+   "oloud": "oloud:degree"
+  },
+  {
+   "concept": "学則・履修規程",
+   "demo": "schema:Legislation",
+   "schema_org": "schema:Legislation",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "通知",
+   "demo": "schema:Message",
+   "schema_org": "schema:Message",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "学年",
+   "demo": "urd:yearOfStudy",
+   "schema_org": "（該当なし）",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "修得単位数の合計",
+   "demo": "urd:earnedCredits",
+   "schema_org": "（該当なし。numberOfCredits は Person に付けられない）",
+   "ccso": "（該当なし。ccso:hasCompleted から集計する）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "年間履修上限",
+   "demo": "urd:annualCreditLimit",
+   "schema_org": "（該当なし）",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
+   "concept": "卒業必修科目",
+   "demo": "urd:requiredCourse",
+   "schema_org": "schema:programPrerequisites（closeMatch。入学要件の意味なので同一視しない）",
+   "ccso": "ccso:hasPrerequisite（closeMatch）",
+   "oloud": "oloud:subjectRequires（closeMatch）"
+  }
+ ],
+ "local_terms": {
+  "urd:yearOfStudy": {
+   "label": "学年",
+   "comment": "学生が在籍している年次。schema.org・CCSO ともに該当用語が無い。",
+   "close_match": []
+  },
+  "urd:earnedCredits": {
+   "label": "修得単位数",
+   "comment": "ccso:hasCompleted で結ばれた科目の schema:numberOfCredits の合計。schema:numberOfCredits は Person を domain に取れないため別用語とした。",
+   "close_match": []
+  },
+  "urd:registeredCredits": {
+   "label": "履修登録単位数",
+   "comment": "ccso:hasRegistered で結ばれた科目の schema:numberOfCredits の合計。",
+   "close_match": []
+  },
+  "urd:annualCreditLimit": {
+   "label": "年間履修上限単位数",
+   "comment": "1年度に履修登録できる単位数の上限。schema.org に該当用語が無い。",
+   "close_match": []
+  },
+  "urd:requiredCourse": {
+   "label": "卒業必修科目",
+   "comment": "課程を修了するために修得が必要な科目。schema:programPrerequisites は入学要件を指すため同一視しない。",
+   "close_match": [
+    "schema:programPrerequisites",
+    "ccso:hasPrerequisite"
+   ]
+  },
+  "urd:minimumYearOfStudy": {
+   "label": "履修に必要な最低学年",
+   "comment": "科目を履修登録するために必要な最低年次。",
+   "close_match": []
+  },
+  "urd:minimumEarnedCredits": {
+   "label": "履修に必要な最低修得単位数",
+   "comment": "科目を履修登録するために必要な修得単位数の下限。",
+   "close_match": [
+    "schema:coursePrerequisites"
+   ]
+  },
+  "urd:evaluationDate": {
+   "label": "判定基準日",
+   "comment": "デモを再現可能にするために固定した評価日。",
+   "close_match": []
+  },
+  "urd:notificationLevel": {
+   "label": "通知レベル",
+   "comment": "通知の重要度。info / success / warning / error。",
+   "close_match": []
+  },
+  "urd:courseCategory": {
+   "label": "科目区分",
+   "comment": "教養科目・専門基礎科目などの区分。schema:DefinedTerm を値に取る。",
+   "close_match": [
+    "schema:about"
+   ]
+  },
+  "urd:semester": {
+   "label": "学期",
+   "comment": "前期（first）／後期（second）。",
+   "close_match": [
+    "oloud:courseTerm"
+   ]
+  },
+  "urd:Rule": {
+   "label": "ルール",
+   "comment": "data/rules.yaml の1件。規程の条文を機械可読にしたもの。",
+   "close_match": []
+  },
+  "urd:DecisionResult": {
+   "label": "判定結果",
+   "comment": "Rule Engine が返した決定論的な判定。生成AIは介在しない。",
+   "close_match": []
+  },
+  "urd:Premise": {
+   "label": "前提",
+   "comment": "判定の根拠となった原子論理式ひとつ分。Horn節の本体に対応する。",
+   "close_match": []
+  },
+  "urd:constrains": {
+   "label": "制約対象",
+   "comment": "ルールが制約するノード。",
+   "close_match": []
+  },
+  "urd:basedOnLegislation": {
+   "label": "根拠条文",
+   "comment": "ルールの根拠となる schema:Legislation ノード。",
+   "close_match": [
+    "schema:citation"
+   ]
+  },
+  "urd:hornClause": {
+   "label": "Horn節",
+   "comment": "判定をHorn節として書き下したもの。人間のレビュー用で、実行はしない。",
+   "close_match": []
+  },
+  "urd:status": {
+   "label": "判定区分",
+   "comment": "eligible / not_eligible / info / unknown。",
+   "close_match": []
+  },
+  "urd:appliedRule": {
+   "label": "適用ルール",
+   "comment": "判定に使ったルール。",
+   "close_match": []
+  },
+  "urd:usesTerm": {
+   "label": "使用用語",
+   "comment": "判定が読んだオントロジー用語。",
+   "close_match": []
+  },
+  "urd:premise": {
+   "label": "前提",
+   "comment": "判定結果が持つ前提の並び。",
+   "close_match": []
+  },
+  "urd:satisfied": {
+   "label": "充足",
+   "comment": "その前提が満たされたかどうか。",
+   "close_match": []
+  },
+  "urd:comparator": {
+   "label": "比較演算子",
+   "comment": ">= や contains など、前提の評価に使った演算子。",
+   "close_match": []
+  },
+  "urd:actualValue": {
+   "label": "実際の値",
+   "comment": "グラフから読み取った値。",
+   "close_match": []
+  },
+  "urd:expectedValue": {
+   "label": "期待する値",
+   "comment": "ルールが要求する値。",
+   "close_match": []
+  },
+  "urd:unmetCondition": {
+   "label": "満たしていない条件",
+   "comment": "不足している要件の説明文。",
+   "close_match": []
+  },
+  "urd:calculation": {
+   "label": "計算式",
+   "comment": "数値判定の計算過程。",
+   "close_match": []
+  },
+  "urd:decision": {
+   "label": "判定",
+   "comment": "通知の根拠となった判定結果。",
+   "close_match": []
+  },
+  "urd:question": {
+   "label": "質問",
+   "comment": "利用者が入力した自然言語の質問。",
+   "close_match": []
+  },
+  "urd:detectedIntent": {
+   "label": "検出したIntent",
+   "comment": "ルールベースIntent Detectionが返した意図。",
+   "close_match": []
+  }
+ }
+}
+</script>
+<!-- END ontology -->
+
+<!--
+  以下の2つの <script> は役割を分けている。
+    engine … ナレッジグラフの読み取りと判定ロジック。DOMには触れない。
+    view   … 画面描画とイベント処理。
+  engine 側は tests/js/check_mirror.mjs が Node.js で直接実行し、
+  Python実装（src/rule_engine.py）と同じ結論を出すかを検証する。
+-->
+<script id="engine">
+"use strict";
+
+const KG = JSON.parse(document.getElementById("knowledge-graph").textContent);
+const DEFAULTS = JSON.parse(document.getElementById("default-rules").textContent);
+const ONTOLOGY = JSON.parse(document.getElementById("ontology").textContent);
+
+const $ = (selector) => document.querySelector(selector);
+const esc = (value) => String(value).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// --- ナレッジグラフの読み取り ------------------------------------------------
+
+const NODES = new Map(KG["@graph"].map((node) => [node["@id"], node]));
+const listOf = (value) => value === undefined || value === null ? [] : (Array.isArray(value) ? value : [value]);
+const typesOf = (node) => listOf(node["@type"]).map(String);
+const literal = (value) => (value && typeof value === "object" && "@value" in value) ? value["@value"] : value;
+const valueOf = (node, term, fallback) => {
+  const values = listOf(node[term]);
+  return values.length ? literal(values[0]) : fallback;
+};
+const refsOf = (node, term) => listOf(node[term])
+  .filter((item) => item && typeof item === "object" && item["@id"])
+  .map((item) => String(item["@id"]));
+const refOf = (node, term) => refsOf(node, term)[0] || null;
+const labelOf = (iri) => NODES.has(iri) ? String(valueOf(NODES.get(iri), "schema:name", iri)) : iri;
+const nodesOfType = (curie) => [...NODES.values()].filter((node) => typesOf(node).includes(curie));
+
+const COURSES = new Map();
+for (const node of nodesOfType("schema:Course")) {
+  COURSES.set(String(valueOf(node, "schema:courseCode", "")), {
+    iri: node["@id"],
+    code: String(valueOf(node, "schema:courseCode", "")),
+    name: String(valueOf(node, "schema:name", "")),
+    credits: Number(valueOf(node, "schema:numberOfCredits", 0)),
+    category: labelOf(refOf(node, "urd:courseCategory")),
+  });
+}
+const courseLabel = (code) => COURSES.has(code) ? COURSES.get(code).name : code;
+
+function legislationOf(iri) {
+  if (!iri || !NODES.has(iri)) return null;
+  const node = NODES.get(iri);
+  if (!typesOf(node).includes("schema:Legislation")) return null;
+  const parentIri = refOf(node, "schema:isPartOf");
+  const parentName = parentIri ? labelOf(parentIri) : null;
+  const identifier = String(valueOf(node, "schema:legislationIdentifier", ""));
+  return {
+    iri,
+    identifier,
+    name: String(valueOf(node, "schema:name", "")),
+    citation: parentName ? `${parentName} ${identifier}` : identifier,
+  };
+}
+
+function creditsFor(node, term) {
+  let total = 0;
+  const codes = [];
+  for (const iri of refsOf(node, term)) {
+    const course = NODES.get(iri);
+    if (!course) continue;
+    total += Number(valueOf(course, "schema:numberOfCredits", 0));
+    codes.push(String(valueOf(course, "schema:courseCode", "")));
+  }
+  return { total, codes };
+}
+
+function registrationCompleted(studentIri) {
+  for (const action of nodesOfType("schema:RegisterAction")) {
+    if (refOf(action, "schema:agent") !== studentIri) continue;
+    return refOf(action, "schema:actionStatus") === "schema:CompletedActionStatus";
+  }
+  return false;
+}
+
+const STUDENTS = nodesOfType("schema:Person").map((node) => {
+  const completed = creditsFor(node, "ccso:hasCompleted");
+  const registered = creditsFor(node, "ccso:hasRegistered");
+  const affiliation = refOf(node, "schema:affiliation");
+  return {
+    iri: node["@id"],
+    student_id: String(valueOf(node, "schema:identifier", "")),
+    name: String(valueOf(node, "schema:name", "")),
+    faculty: affiliation ? labelOf(affiliation) : "",
+    year_of_study: Number(valueOf(node, "urd:yearOfStudy", 1)),
+    earned_credits: completed.total,
+    current_registered_credits: registered.total,
+    completed_courses: completed.codes,
+    registered_courses: registered.codes,
+    registration_completed: registrationCompleted(node["@id"]),
+  };
+}).sort((a, b) => a.student_id.localeCompare(b.student_id));
+
+// --- ルール ------------------------------------------------------------------
+
+const STORAGE_KEY = "university_rules_ontology";
+const EVALUATION_DATE = DEFAULTS.settings.evaluation_date;
+let rules = loadRules();
+let student = STUDENTS[0];
+
+function loadRules() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch (error) { /* localStorage が使えない環境では既定値を使う */ }
+  return structuredClone(DEFAULTS.rules);
+}
+
+const ruleOfType = (type) => rules.find((rule) => rule.rule_type === type);
+
+// --- 判定 --------------------------------------------------------------------
+
+function premise(term, label, options = {}) {
+  return {
+    term, label,
+    subject: options.subject ?? null,
+    actual: options.actual ?? null,
+    comparator: options.comparator ?? null,
+    expected: options.expected ?? null,
+    satisfied: options.satisfied ?? true,
+  };
+}
+
+function result(status, message, appliedRules, options = {}) {
+  const references = appliedRules.map((rule) => {
+    const law = legislationOf(rule.legislation);
+    return {
+      rule_id: rule.rule_id, title: rule.title, source: rule.source,
+      legislation_iri: law ? law.iri : null,
+      legislation_identifier: law ? law.citation : null,
+    };
+  });
+  return {
+    status, message, references,
+    facts: options.facts || {},
+    calculation: options.calculation || null,
+    unmet: options.unmet || [],
+    terms: options.terms || [],
+    hornClause: options.hornClause || null,
+    premises: options.premises || [],
+  };
+}
+
+const unknown = () => result("unknown", "このプロトタイプに登録されているルールでは判定できません。", []);
+const ontologyOf = (type) => ONTOLOGY.rule_types[type] || { terms: [], horn_clause: null };
+
+function coursePremises(target, codes) {
+  const premises = [];
+  const missing = [];
+  for (const code of codes) {
+    const satisfied = target.completed_courses.includes(code);
+    premises.push(premise("ccso:hasCompleted", `${courseLabel(code)}を修得している`, {
+      subject: target.iri, actual: satisfied, comparator: "contains", expected: code, satisfied,
+    }));
+    if (!satisfied) missing.push(courseLabel(code));
+  }
+  return { premises, missing };
+}
+
+function registrationDeadline() {
+  const rule = ruleOfType("registration_deadline");
+  if (!rule) return unknown();
+  const meta = ontologyOf("registration_deadline");
+  const days = Math.round((new Date(rule.deadline) - new Date(EVALUATION_DATE)) / 86400000);
+  const shown = rule.deadline.replace(/(\d{4})-(\d{2})-(\d{2})/, "$1年$2月$3日");
+  return result("info", `履修登録期限は${shown}です。`, [rule], {
+    facts: { deadline: rule.deadline, evaluation_date: EVALUATION_DATE, days_remaining: days },
+    calculation: `${rule.deadline} - ${EVALUATION_DATE} = ${days}日`,
+    terms: meta.terms, hornClause: meta.horn_clause,
+    premises: [
+      premise("schema:applicationDeadline", "履修登録期限", { subject: rule.subject, actual: rule.deadline }),
+      premise("urd:evaluationDate", "判定基準日", { actual: EVALUATION_DATE }),
+    ],
+  });
+}
+
+function creditLimit() {
+  const rule = ruleOfType("annual_credit_limit");
+  if (!rule) return unknown();
+  const meta = ontologyOf("annual_credit_limit");
+  return result("info", `年間履修上限は${rule.max_credits}単位です。`, [rule], {
+    facts: { annual_credit_limit: rule.max_credits },
+    terms: meta.terms, hornClause: meta.horn_clause,
+    premises: [premise("urd:annualCreditLimit", "年間履修上限", { subject: rule.subject, actual: rule.max_credits })],
+  });
+}
+
+function remainingCredits(target) {
+  const rule = ruleOfType("annual_credit_limit");
+  if (!rule) return unknown();
+  const meta = ontologyOf("annual_credit_limit");
+  const remaining = Math.max(0, rule.max_credits - target.current_registered_credits);
+  return result("info", `現在、あと${remaining}単位履修できます。`, [rule], {
+    facts: {
+      annual_credit_limit: rule.max_credits,
+      current_registered_credits: target.current_registered_credits,
+      remaining_credits: remaining,
+    },
+    calculation: `max(0, ${rule.max_credits} - ${target.current_registered_credits}) = ${remaining}`,
+    terms: meta.terms, hornClause: meta.horn_clause,
+    premises: [
+      premise("urd:annualCreditLimit", "年間履修上限", { subject: rule.subject, actual: rule.max_credits }),
+      premise("urd:registeredCredits", "履修登録単位数（ccso:hasRegistered の合計）",
+        { subject: target.iri, actual: target.current_registered_credits }),
+    ],
+  });
+}
+
+function graduationCreditRequirement() {
+  const rule = ruleOfType("graduation_credit_requirement");
+  if (!rule) return unknown();
+  const meta = ontologyOf("graduation_credit_requirement");
+  return result("info", `卒業に必要な単位数は${rule.required_credits}単位です。別途、必修科目要件もあります。`, [rule], {
+    facts: { required_credits: rule.required_credits },
+    terms: meta.terms, hornClause: meta.horn_clause,
+    premises: [premise("schema:numberOfCredits", "卒業に必要な単位数",
+      { subject: rule.subject, actual: rule.required_credits })],
+  });
+}
+
+function requiredCourses(target) {
+  const rule = ruleOfType("graduation_required_courses");
+  if (!rule) return unknown();
+  const meta = ontologyOf("graduation_required_courses");
+  const { premises, missing } = coursePremises(target, rule.required_courses);
+  const eligible = missing.length === 0;
+  return result(eligible ? "eligible" : "not_eligible",
+    eligible ? "卒業に必要な必修科目をすべて修得しています。"
+             : `卒業に必要な必修科目が不足しています：${missing.join("、")}。`, [rule], {
+    facts: Object.fromEntries(rule.required_courses.map((code) =>
+      [courseLabel(code), target.completed_courses.includes(code)])),
+    unmet: missing.map((name) => `${name}を修得していない`),
+    terms: meta.terms, hornClause: meta.horn_clause, premises,
+  });
+}
+
+function graduation(target) {
+  const creditRule = ruleOfType("graduation_credit_requirement");
+  const courseRule = ruleOfType("graduation_required_courses");
+  if (!creditRule || !courseRule) return unknown();
+  const unmet = [];
+  const creditsOk = target.earned_credits >= creditRule.required_credits;
+  if (!creditsOk) unmet.push(`卒業必要単位まで${creditRule.required_credits - target.earned_credits}単位不足`);
+  const { premises, missing } = coursePremises(target, courseRule.required_courses);
+  missing.forEach((name) => unmet.push(`${name}を未修得`));
+
+  const terms = [...new Set([
+    ...ontologyOf("graduation_credit_requirement").terms,
+    ...ontologyOf("graduation_required_courses").terms,
+  ])].sort();
+
+  return result(unmet.length ? "not_eligible" : "eligible",
+    unmet.length ? "現時点の登録情報では卒業要件を満たしていません。"
+                 : "現時点の登録情報では卒業要件を満たしています。", [creditRule, courseRule], {
+    facts: { required_credits: creditRule.required_credits, earned_credits: target.earned_credits },
+    calculation: `単位判定: ${target.earned_credits} >= ${creditRule.required_credits}`,
+    unmet, terms,
+    hornClause: "eligible_to_graduate(Student) :- meets_credit_requirement(Student), meets_course_requirement(Student).",
+    premises: [
+      premise("urd:earnedCredits", "修得単位数（ccso:hasCompleted の合計）", {
+        subject: target.iri, actual: target.earned_credits,
+        comparator: ">=", expected: creditRule.required_credits, satisfied: creditsOk,
+      }),
+      ...premises,
+    ],
+  });
+}
+
+function thesisEligibility(target) {
+  const rule = ruleOfType("thesis_eligibility");
+  if (!rule) return unknown();
+  const meta = ontologyOf("thesis_eligibility");
+  const unmet = [];
+  const yearOk = target.year_of_study >= rule.minimum_year_of_study;
+  if (!yearOk) unmet.push(`${rule.minimum_year_of_study}年生以上ではない`);
+  const creditsOk = target.earned_credits >= rule.minimum_earned_credits;
+  if (!creditsOk) unmet.push(`修得単位が${rule.minimum_earned_credits}単位未満`);
+  const { premises, missing } = coursePremises(target, rule.required_courses);
+  missing.forEach((name) => unmet.push(`${name}を未修得`));
+
+  return result(unmet.length ? "not_eligible" : "eligible",
+    unmet.length ? `卒業研究を履修できません。不足条件：${unmet.join("、")}。` : "卒業研究を履修できます。",
+    [rule], {
+    facts: {
+      year_of_study: target.year_of_study, minimum_year_of_study: rule.minimum_year_of_study,
+      earned_credits: target.earned_credits, minimum_earned_credits: rule.minimum_earned_credits,
+    },
+    unmet, terms: meta.terms, hornClause: meta.horn_clause,
+    premises: [
+      premise("urd:yearOfStudy", "学年", {
+        subject: target.iri, actual: target.year_of_study,
+        comparator: ">=", expected: rule.minimum_year_of_study, satisfied: yearOk,
+      }),
+      premise("urd:earnedCredits", "修得単位数", {
+        subject: target.iri, actual: target.earned_credits,
+        comparator: ">=", expected: rule.minimum_earned_credits, satisfied: creditsOk,
+      }),
+      ...premises,
+    ],
+  });
+}
+
+// src/intent.py の RuleBasedIntentDetector と同じ判定を行う。
+// 語順に依存する正規表現ではなく、Python 側と同じ「語の包含」で判定する
+// （tests/test_docs_mirror.py が両者の一致を検証する）。
+function detectIntent(question) {
+  const text = question.toLowerCase().replace(/[\s　、。？！?!]/g, "");
+  if (!text) return "unknown";
+  const has = (word) => text.includes(word);
+  const hasAny = (...words) => words.some(has);
+
+  if (has("卒業研究") || has("卒研")) return "thesis_eligibility";
+  if ((has("履修登録") || has("登録")) && hasAny("いつまで", "期限", "締切", "しめきり"))
+    return "registration_deadline";
+  if (has("必修") && hasAny("足り", "修得", "取得", "大丈夫", "満た")) return "required_courses";
+  if (has("卒業") && has("単位") && hasAny("必要", "何単位", "いくつ"))
+    return "graduation_credit_requirement";
+  if (has("卒業") && hasAny("でき", "可能", "満た", "大丈夫", "条件")) return "graduation_status";
+  if (has("単位") && (has("年間") || has("上限")) && hasAny("何", "まで", "上限")) return "credit_limit";
+  if ((has("単位") || has("履修")) && hasAny("あと", "残り", "とれる", "取れる", "履修でき", "まで"))
+    return "remaining_credit";
+  return "unknown";
+}
+
+function decide(question, target) {
+  const intent = detectIntent(question);
+  const handlers = {
+    thesis_eligibility: () => thesisEligibility(target),
+    registration_deadline: () => registrationDeadline(),
+    required_courses: () => requiredCourses(target),
+    graduation_credit_requirement: () => graduationCreditRequirement(),
+    graduation_status: () => graduation(target),
+    credit_limit: () => creditLimit(),
+    remaining_credit: () => remainingCredits(target),
+  };
+  const handler = handlers[intent];
+  return { intent, decision: handler ? handler() : unknown() };
+}
+
+function compare(actual, operator, expected) {
+  switch (operator) {
+    case "==": return actual == expected;
+    case "!=": return actual != expected;
+    case ">=": return actual >= expected;
+    case "<=": return actual <= expected;
+    case ">": return actual > expected;
+    case "<": return actual < expected;
+    case "contains": return Array.isArray(actual) && actual.includes(expected);
+    case "not_contains": return Array.isArray(actual) && !actual.includes(expected);
+    default: return false;
+  }
+}
+
+const CONDITION_ATTRIBUTE = {
+  "urd:yearOfStudy": "year_of_study",
+  "urd:earnedCredits": "earned_credits",
+  "urd:registeredCredits": "current_registered_credits",
+  "schema:actionStatus": "registration_completed",
+  "ccso:hasCompleted": "completed_courses",
+  "ccso:hasRegistered": "registered_courses",
+};
+
+function personalizedNotifications(target) {
+  const meta = ontologyOf("personalized_notification");
+  const matched = [];
+  for (const rule of rules) {
+    if (rule.rule_type !== "personalized_notification" || rule.enabled === false) continue;
+    const premises = [];
+    let ok = true;
+    for (const condition of rule.conditions || []) {
+      const actual = target[CONDITION_ATTRIBUTE[condition.term]];
+      const satisfied = compare(actual, condition.operator, condition.value);
+      const label = (ONTOLOGY.condition_terms[condition.term] || {}).label || condition.term;
+      premises.push(premise(condition.term, label, {
+        subject: target.iri,
+        actual: Array.isArray(actual) ? actual.map(courseLabel) : actual,
+        comparator: condition.operator, expected: condition.value, satisfied,
+      }));
+      if (!satisfied) ok = false;
+    }
+    if (!ok) continue;
+    matched.push({
+      level: rule.level || "info", title: rule.title, message: rule.message,
+      decision: result("info", rule.message, [rule], {
+        terms: meta.terms, hornClause: meta.horn_clause, premises,
+      }),
+    });
+  }
+  return matched;
+}
+
+function notificationsFor(target) {
+  const notices = [];
+  const deadlineRule = ruleOfType("registration_deadline");
+  if (!target.registration_completed && deadlineRule) {
+    const base = registrationDeadline();
+    notices.push({
+      level: "warning", title: "履修登録未完了",
+      message: `履修登録が完了していません。期限は${deadlineRule.deadline}です。`,
+      decision: base,
+    });
+    const days = base.facts.days_remaining;
+    if (days >= 0 && days <= 3) {
+      notices.push({
+        level: "error", title: "履修登録期限接近",
+        message: `履修登録期限が近づいています。あと${days}日です。`,
+        decision: base,
+      });
+    }
+  }
+  if (target.year_of_study >= 4) {
+    const decision = graduation(target);
+    if (decision.status === "eligible") {
+      notices.push({ level: "success", title: "卒業要件充足", message: decision.message, decision });
+    } else if (decision.status === "not_eligible") {
+      const creditRule = ruleOfType("graduation_credit_requirement");
+      const short = creditRule && target.earned_credits < creditRule.required_credits;
+      let message = short
+        ? "現在の修得単位数では卒業要件を満たしていません。"
+        : "現在の必修科目の修得状況では卒業要件を満たしていません。";
+      if (decision.unmet.length) message += ` 不足：${decision.unmet.join("、")}。`;
+      notices.push({ level: "warning", title: "卒業要件不足", message, decision });
+    }
+  }
+  return [...notices, ...personalizedNotifications(target)];
+}
+
+// engine ここまで。以降は描画。
+</script>
+
+<script id="view">
+"use strict";
+
+function saveRules() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(rules)); } catch (error) { /* 保存できなくても表示は続ける */ }
+  renderAll();
+}
+
+const termLink = (curie) => {
+  const [prefix, local] = curie.split(":");
+  const namespace = ONTOLOGY.context[prefix];
+  return (prefix === "schema" || prefix === "ccso") && namespace
+    ? `<a href="${esc(namespace + local)}"><code>${esc(curie)}</code></a>`
+    : `<code>${esc(curie)}</code>`;
+};
+
+function table(headers, rows) {
+  return `<table><thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>`
+    + `<tbody>${rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
+function basis(decision) {
+  if (!decision.references.length) return "<p class=\"muted\">適用できる登録済みルールはありません。</p>";
+  let html = decision.references.map((reference) => `<p><b>${esc(reference.rule_id)}</b> — ${esc(reference.title)}<br>`
+    + `<span class="muted">出典：${esc(reference.legislation_identifier || reference.source)}`
+    + (reference.legislation_iri ? `　根拠条文ノード：<code>${esc(reference.legislation_iri)}</code>` : "")
+    + "</span></p>").join("");
+  if (decision.hornClause) html += `<h3>このルールのHorn節</h3><pre>${esc(decision.hornClause)}</pre>`;
+  if (decision.premises.length) {
+    html += "<h3>判定に使った原子論理式</h3>" + table(
+      ["", "用語", "内容", "実際の値", "比較", "要求値"],
+      decision.premises.map((p) => [
+        p.satisfied ? '<span class="ok">✅</span>' : '<span class="ng">❌</span>',
+        termLink(p.term), esc(p.label), esc(JSON.stringify(p.actual)),
+        esc(p.comparator || ""), esc(p.expected === null ? "" : p.expected),
+      ]));
+  }
+  if (decision.terms.length) {
+    html += `<h3>使用したオントロジー用語</h3><p>${decision.terms.map(termLink).join(" / ")}</p>`;
+  }
+  if (Object.keys(decision.facts).length) {
+    html += `<h3>判定に使用した事実</h3><pre>${esc(JSON.stringify(decision.facts, null, 2))}</pre>`;
+  }
+  if (decision.calculation) html += `<h3>計算式</h3><pre>${esc(decision.calculation)}</pre>`;
+  if (decision.unmet.length) {
+    html += `<h3>満たしていない条件</h3><ul>${decision.unmet.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>`;
+  }
+  return html;
+}
+
+function renderStudent() {
+  student = STUDENTS.find((item) => item.student_id === $("#student").value) || STUDENTS[0];
+  $("#student-card").innerHTML = `<b>${esc(student.name)}</b>（${esc(student.student_id)}）｜ `
+    + `${esc(student.faculty)} ${student.year_of_study}年 ｜ <code>${esc(student.iri)}</code>`;
+  $("#metrics").innerHTML = [
+    ["修得単位", `${student.earned_credits} 単位`],
+    ["現在履修登録", `${student.current_registered_credits} 単位`],
+    ["修得済み科目", `${student.completed_courses.length} 科目`],
+    ["履修登録", student.registration_completed ? "完了" : "未完了"],
+  ].map(([label, value]) => `<div class="metric"><span class="muted">${esc(label)}</span><b>${esc(value)}</b></div>`).join("");
+}
+
+function renderNotices() {
+  const notices = notificationsFor(student);
+  $("#notices").innerHTML = notices.length
+    ? notices.map((notice) => `<div class="notice ${esc(notice.level)}"><b>${esc(notice.title)}</b>`
+      + `<p>${esc(notice.message)}</p>`
+      + `<details><summary>判定根拠</summary>${basis(notice.decision)}</details></div>`).join("")
+    : '<p class="muted">現在、あなたへの個別のお知らせはありません。</p>';
+}
+
+function renderAnswer(question) {
+  if (!question) { $("#answer").innerHTML = ""; return; }
+  const { intent, decision } = decide(question, student);
+  const level = { eligible: "success", not_eligible: "error", unknown: "warning", info: "info" }[decision.status];
+  $("#answer").innerHTML = `<div class="notice ${level}"><b>${esc(decision.message)}</b>`
+    + `<p class="muted">検出したIntent：<code>${esc(intent)}</code></p>${basis(decision)}</div>`;
+}
+
+function ruleSummary(rule) {
+  const law = legislationOf(rule.legislation);
+  const label = (ONTOLOGY.rule_types[rule.rule_type] || {}).label || rule.rule_type;
+  return [esc(rule.rule_id), esc(label), esc(rule.title),
+    rule.subject ? `<code>${esc(rule.subject)}</code>` : "—",
+    esc(law ? law.citation : rule.source)];
+}
+
+function renderRules() {
+  $("#rule-list").innerHTML = table(
+    ["ルールID", "種別", "ルール名", "対象ノード", "根拠条文"], rules.map(ruleSummary));
+  const stored = (() => { try { return !!localStorage.getItem(STORAGE_KEY); } catch (e) { return false; } })();
+  $("#rule-status").textContent = stored
+    ? "このブラウザに保存された編集済みルールを使用しています。"
+    : "既定のルール（data/rules.yaml と同じ内容）を使用しています。";
+}
+
+function courseOptions(selected) {
+  return [...COURSES.values()].map((course) =>
+    `<option value="${esc(course.code)}"${selected.includes(course.code) ? " selected" : ""}>`
+    + `${esc(course.name)}（${esc(course.code)} / ${course.credits}単位）</option>`).join("");
+}
+
+function editableFields(rule) {
+  switch (rule.rule_type) {
+    case "registration_deadline":
+      return `<div class="row"><label>登録期限（schema:applicationDeadline）</label>
+        <input type="date" data-field="deadline" value="${esc(rule.deadline)}"></div>`;
+    case "annual_credit_limit":
+      return `<div class="row"><label>年間履修上限（urd:annualCreditLimit）</label>
+        <input type="number" min="1" data-field="max_credits" value="${rule.max_credits}"></div>`;
+    case "graduation_credit_requirement":
+      return `<div class="row"><label>卒業必要単位数（schema:numberOfCredits）</label>
+        <input type="number" min="1" data-field="required_credits" value="${rule.required_credits}"></div>`;
+    case "graduation_required_courses":
+      return `<div class="row"><label>卒業必修科目（urd:requiredCourse）</label>
+        <select multiple size="6" data-field="required_courses">${courseOptions(rule.required_courses)}</select></div>`;
+    case "thesis_eligibility":
+      return `<div class="row"><label>最低学年（urd:minimumYearOfStudy）</label>
+        <input type="number" min="1" data-field="minimum_year_of_study" value="${rule.minimum_year_of_study}"></div>
+        <div class="row"><label>最低修得単位数（urd:minimumEarnedCredits）</label>
+        <input type="number" min="0" data-field="minimum_earned_credits" value="${rule.minimum_earned_credits}"></div>
+        <div class="row"><label>前提科目（schema:coursePrerequisites）</label>
+        <select multiple size="6" data-field="required_courses">${courseOptions(rule.required_courses)}</select></div>`;
+    case "personalized_notification":
+      return `<div class="row"><label>通知本文（schema:text）</label>
+        <input size="40" data-field="message" value="${esc(rule.message || "")}"></div>
+        <div class="row"><label>通知レベル</label><select data-field="level">
+        ${["info", "success", "warning", "error"].map((level) =>
+          `<option${rule.level === level ? " selected" : ""}>${level}</option>`).join("")}</select></div>`;
+    default:
+      return "";
+  }
+}
+
+function renderEdit() {
+  const options = rules.map((rule) => `<option value="${esc(rule.rule_id)}">${esc(rule.rule_id)} — ${esc(rule.title)}</option>`).join("");
+  $("#edit-body").innerHTML = `<div class="row"><label>編集するルール</label>
+    <select id="edit-select">${options}</select></div><div id="edit-fields"></div>
+    <div class="row"><button class="primary" id="apply-edit">変更を保存</button>
+    <button id="delete-rule">このルールを削除</button></div>`;
+
+  const fill = () => {
+    const rule = rules.find((item) => item.rule_id === $("#edit-select").value);
+    $("#edit-fields").innerHTML = rule
+      ? `<p class="muted">Horn節：<code>${esc((ONTOLOGY.rule_types[rule.rule_type] || {}).horn_clause || "")}</code></p>`
+        + editableFields(rule)
+      : "";
+  };
+  $("#edit-select").addEventListener("change", fill);
+  fill();
+
+  $("#apply-edit").addEventListener("click", () => {
+    const rule = rules.find((item) => item.rule_id === $("#edit-select").value);
+    if (!rule) return;
+    for (const input of $("#edit-fields").querySelectorAll("[data-field]")) {
+      const field = input.dataset.field;
+      if (input.multiple) {
+        const selected = [...input.selectedOptions].map((option) => option.value);
+        if (!selected.length) { alert("科目を1件以上選択してください。"); return; }
+        rule[field] = selected;
+      } else if (input.type === "number") {
+        const value = Number(input.value);
+        if (!Number.isInteger(value) || value < 0) { alert("0以上の整数を入力してください。"); return; }
+        rule[field] = value;
+      } else {
+        if (!input.value.trim()) { alert("値を入力してください。"); return; }
+        rule[field] = input.value;
+      }
+    }
+    saveRules();
+  });
+
+  $("#delete-rule").addEventListener("click", () => {
+    const ruleId = $("#edit-select").value;
+    if (!confirm(`${ruleId} を削除します。よろしいですか？`)) return;
+    rules = rules.filter((item) => item.rule_id !== ruleId);
+    saveRules();
+  });
+}
+
+function renderAdd() {
+  const terms = Object.entries(ONTOLOGY.condition_terms)
+    .map(([term, meta]) => `<option value="${esc(term)}">${esc(term)}（${esc(meta.label)}）</option>`).join("");
+  $("#add-body").innerHTML = `
+    <div class="row"><label>ルールID</label><input id="new-id" value="RULE-NOTICE-001"></div>
+    <div class="row"><label>ルール名</label><input id="new-title" value="卒業準備の確認"></div>
+    <div class="row"><label>通知本文（schema:text）</label><input id="new-message" size="34" value="卒業準備を確認してください。"></div>
+    <div class="row"><label>通知レベル</label><select id="new-level">
+      <option>info</option><option selected>warning</option><option>success</option><option>error</option></select></div>
+    <div class="row"><label>条件の用語</label><select id="new-term">${terms}</select></div>
+    <div class="row"><label>比較</label><select id="new-operator">
+      ${["==", "!=", ">=", "<=", ">", "<", "contains", "not_contains"].map((op) => `<option>${op}</option>`).join("")}
+      </select></div>
+    <div class="row"><label>条件値</label><input id="new-value" value="4"></div>
+    <div class="row"><button class="primary" id="add-rule">通知ルールを追加</button></div>
+    <p class="muted">科目の用語（ccso:hasCompleted / ccso:hasRegistered）には contains / not_contains と
+    科目コード（例：REQ-B）を、数値には比較演算子を使います。</p>`;
+
+  $("#add-rule").addEventListener("click", () => {
+    const ruleId = $("#new-id").value.trim();
+    if (!/^[A-Z0-9][A-Z0-9_-]*$/.test(ruleId)) { alert("ルールIDは半角英大文字・数字・ハイフンで入力してください。"); return; }
+    if (rules.some((rule) => rule.rule_id === ruleId)) { alert(`ルールID ${ruleId} は既に存在します。`); return; }
+    const term = $("#new-term").value;
+    const operator = $("#new-operator").value;
+    const raw = $("#new-value").value.trim();
+    const kind = ONTOLOGY.condition_terms[term].type;
+    let value;
+    if (kind === "list") {
+      if (!["contains", "not_contains"].includes(operator)) { alert("科目の用語には contains / not_contains を使用してください。"); return; }
+      if (!COURSES.has(raw)) { alert(`ナレッジグラフに存在しない科目コードです: ${raw}`); return; }
+      value = raw;
+    } else if (kind === "bool") {
+      if (!["==", "!="].includes(operator)) { alert("はい／いいえの用語には == または != を使用してください。"); return; }
+      value = ["true", "はい", "1"].includes(raw.toLowerCase());
+    } else {
+      const number = Number(raw);
+      if (!Number.isInteger(number) || number < 0) { alert("条件値は0以上の整数で入力してください。"); return; }
+      value = number;
+    }
+    const message = $("#new-message").value.trim();
+    if (!message) { alert("通知本文は必須です。"); return; }
+    rules.push({
+      rule_id: ruleId, rule_type: "personalized_notification",
+      title: $("#new-title").value.trim() || ruleId, source: "画面で追加",
+      enabled: true, message, level: $("#new-level").value,
+      conditions: [{ term, operator, value }],
+    });
+    saveRules();
+  });
+}
+
+function renderOntology() {
+  $("#ontology-versions").textContent =
+    `schema.org ${ONTOLOGY.schema_org_version} を基底に、学籍側の語彙を CCSO ${ONTOLOGY.ccso_version} で補い、`
+    + "どちらにも無い概念だけをローカル拡張 urd: として定義しています。";
+  $("#crosswalk").innerHTML = table(
+    ["概念", "本デモ", "schema.org", "CCSO", "OLOUD"],
+    ONTOLOGY.crosswalk.map((row) => [esc(row.concept), esc(row.demo), esc(row.schema_org), esc(row.ccso), esc(row.oloud)]));
+  $("#local-terms").innerHTML = table(
+    ["用語", "名称", "説明", "近い既存用語"],
+    Object.entries(ONTOLOGY.local_terms).map(([curie, definition]) => [
+      `<code>${esc(curie)}</code>`, esc(definition.label), esc(definition.comment),
+      definition.close_match.length ? definition.close_match.map(termLink).join("、") : "—"]));
+  $("#horn-clauses").innerHTML = Object.entries(ONTOLOGY.rule_types).map(([type, meta]) =>
+    `<h3>${esc(meta.label)}（<code>${esc(type)}</code>）</h3><pre>${esc(meta.horn_clause)}</pre>`).join("");
+  $("#catalog").innerHTML = table(
+    ["科目コード", "科目名", "単位数", "区分"],
+    [...COURSES.values()].map((course) => [esc(course.code), esc(course.name), course.credits, esc(course.category)]));
+  $("#eval-date").textContent = EVALUATION_DATE;
+}
+
+function renderAll() {
+  renderStudent();
+  renderNotices();
+  renderAnswer($("#question").value.trim());
+  renderRules();
+  renderEdit();
+  renderAdd();
+}
+
+$("#student").innerHTML = STUDENTS.map((item) =>
+  `<option value="${esc(item.student_id)}">${esc(item.student_id)} ${esc(item.name)}</option>`).join("");
+$("#student").addEventListener("change", () => { $("#question").value = ""; renderAll(); });
+$("#question-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  renderAnswer($("#question").value.trim());
+});
+$("#reset").addEventListener("click", () => {
+  if (!confirm("このブラウザに保存したルールを削除し、既定のルールに戻します。")) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch (error) { /* 保存できない環境では既定値のまま */ }
+  rules = structuredClone(DEFAULTS.rules);
+  renderAll();
+});
+
+renderOntology();
+renderAll();
+</script>
+</body>
+</html>

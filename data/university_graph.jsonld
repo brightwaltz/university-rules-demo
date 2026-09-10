@@ -1,0 +1,1810 @@
+{
+  "@context": {
+    "schema": "https://schema.org/",
+    "ccso": "https://w3id.org/ccso/ccso#",
+    "oloud": "http://lod.nik.uni-obuda.hu/oloud/oloud#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "urd": "https://brightwaltz.github.io/university-rules-demo/ns#",
+    "urdi": "https://brightwaltz.github.io/university-rules-demo/id/"
+  },
+  "@graph": [
+    {
+      "@id": "urdi:organization/demo-university",
+      "@type": [
+        "schema:CollegeOrUniversity",
+        "ccso:University"
+      ],
+      "schema:name": "デモ工科大学",
+      "schema:description": "研究用デモのための架空の大学。実在の大学ではない。"
+    },
+    {
+      "@id": "urdi:organization/engineering",
+      "@type": [
+        "schema:EducationalOrganization",
+        "ccso:School"
+      ],
+      "schema:name": "工学部",
+      "schema:parentOrganization": {
+        "@id": "urdi:organization/demo-university"
+      }
+    },
+    {
+      "@id": "urdi:credential/bachelor-engineering",
+      "@type": "schema:EducationalOccupationalCredential",
+      "schema:name": "学士（工学）",
+      "schema:credentialCategory": "bachelor degree",
+      "schema:educationalLevel": "学士課程",
+      "schema:recognizedBy": {
+        "@id": "urdi:organization/demo-university"
+      }
+    },
+    {
+      "@id": "urdi:program/engineering-2026",
+      "@type": [
+        "schema:EducationalOccupationalProgram",
+        "ccso:ProgramofStudy"
+      ],
+      "schema:name": "工学部 学士課程（2026年度）",
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "schema:termsPerYear": 2,
+      "schema:educationalCredentialAwarded": {
+        "@id": "urdi:credential/bachelor-engineering"
+      },
+      "ccso:academicYear": "2026",
+      "rdfs:comment": "卒業必要単位数・年間履修上限・履修登録期限・必修科目は data/rules.yaml が保持する。"
+    },
+    {
+      "@id": "urdi:terms/course-category",
+      "@type": "schema:DefinedTermSet",
+      "schema:name": "科目区分"
+    },
+    {
+      "@id": "urdi:term/general-education",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "教養科目",
+      "schema:termCode": "GEN",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:term/foundational",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "専門基礎科目",
+      "schema:termCode": "FND",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:term/specialized",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "専門科目",
+      "schema:termCode": "SPC",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:term/required",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "必修科目",
+      "schema:termCode": "REQ",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:term/thesis",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "卒業研究",
+      "schema:termCode": "THESIS",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/course-category"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-01",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "哲学入門",
+      "schema:courseCode": "GEN-01",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-02",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "倫理学",
+      "schema:courseCode": "GEN-02",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-03",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "心理学概論",
+      "schema:courseCode": "GEN-03",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-04",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "社会学概論",
+      "schema:courseCode": "GEN-04",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-05",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "経済学入門",
+      "schema:courseCode": "GEN-05",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-06",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "歴史学概論",
+      "schema:courseCode": "GEN-06",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-07",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "文学と表現",
+      "schema:courseCode": "GEN-07",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-08",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "日本国憲法",
+      "schema:courseCode": "GEN-08",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-09",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "統計入門",
+      "schema:courseCode": "GEN-09",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-10",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "情報倫理",
+      "schema:courseCode": "GEN-10",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-11",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "科学技術史",
+      "schema:courseCode": "GEN-11",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-12",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "英語コミュニケーションⅠ",
+      "schema:courseCode": "GEN-12",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-13",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "英語コミュニケーションⅡ",
+      "schema:courseCode": "GEN-13",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-14",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "英語リーディング",
+      "schema:courseCode": "GEN-14",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-15",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "第二外国語Ⅰ",
+      "schema:courseCode": "GEN-15",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-16",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "第二外国語Ⅱ",
+      "schema:courseCode": "GEN-16",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-17",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "健康科学",
+      "schema:courseCode": "GEN-17",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-18",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "スポーツ実習",
+      "schema:courseCode": "GEN-18",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-19",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "環境と社会",
+      "schema:courseCode": "GEN-19",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-20",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "キャリアデザイン",
+      "schema:courseCode": "GEN-20",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-21",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "データと社会",
+      "schema:courseCode": "GEN-21",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-22",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "異文化理解",
+      "schema:courseCode": "GEN-22",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-23",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "芸術鑑賞論",
+      "schema:courseCode": "GEN-23",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/GEN-24",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ボランティア実践",
+      "schema:courseCode": "GEN-24",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/general-education"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-01",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "微分積分学Ⅰ",
+      "schema:courseCode": "FND-01",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-02",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "微分積分学Ⅱ",
+      "schema:courseCode": "FND-02",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-03",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "線形代数学Ⅰ",
+      "schema:courseCode": "FND-03",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-04",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "線形代数学Ⅱ",
+      "schema:courseCode": "FND-04",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-05",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "物理学Ⅰ",
+      "schema:courseCode": "FND-05",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-06",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "物理学Ⅱ",
+      "schema:courseCode": "FND-06",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-07",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "化学基礎",
+      "schema:courseCode": "FND-07",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-08",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "確率統計",
+      "schema:courseCode": "FND-08",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-09",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "プログラミング基礎",
+      "schema:courseCode": "FND-09",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-10",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "プログラミング演習",
+      "schema:courseCode": "FND-10",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-11",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "離散数学",
+      "schema:courseCode": "FND-11",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-12",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "電気回路",
+      "schema:courseCode": "FND-12",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-13",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "論理回路",
+      "schema:courseCode": "FND-13",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/FND-14",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "微分方程式",
+      "schema:courseCode": "FND-14",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/foundational"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-01",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "データ構造とアルゴリズム",
+      "schema:courseCode": "SPC-01",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-02",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "オペレーティングシステム",
+      "schema:courseCode": "SPC-02",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-03",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "コンピュータアーキテクチャ",
+      "schema:courseCode": "SPC-03",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-04",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "データベース論",
+      "schema:courseCode": "SPC-04",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-05",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ネットワーク工学",
+      "schema:courseCode": "SPC-05",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-06",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ソフトウェア工学",
+      "schema:courseCode": "SPC-06",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-07",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "人工知能概論",
+      "schema:courseCode": "SPC-07",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-08",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "機械学習",
+      "schema:courseCode": "SPC-08",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-09",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "信号処理",
+      "schema:courseCode": "SPC-09",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-10",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "制御工学",
+      "schema:courseCode": "SPC-10",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-11",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "画像処理",
+      "schema:courseCode": "SPC-11",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-12",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "自然言語処理",
+      "schema:courseCode": "SPC-12",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-13",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "情報セキュリティ",
+      "schema:courseCode": "SPC-13",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-14",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "分散システム",
+      "schema:courseCode": "SPC-14",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-15",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ヒューマンインタフェース",
+      "schema:courseCode": "SPC-15",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-16",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "知識工学",
+      "schema:courseCode": "SPC-16",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-17",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "セマンティックウェブ",
+      "schema:courseCode": "SPC-17",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-18",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "数値解析",
+      "schema:courseCode": "SPC-18",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-19",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "最適化理論",
+      "schema:courseCode": "SPC-19",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-20",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "計算機統計",
+      "schema:courseCode": "SPC-20",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-21",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "組込みシステム",
+      "schema:courseCode": "SPC-21",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-22",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "ロボティクス",
+      "schema:courseCode": "SPC-22",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-23",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "プロジェクト演習Ⅰ",
+      "schema:courseCode": "SPC-23",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/SPC-24",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "プロジェクト演習Ⅱ",
+      "schema:courseCode": "SPC-24",
+      "schema:numberOfCredits": 2,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/specialized"
+      }
+    },
+    {
+      "@id": "urdi:course/REQ-A",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "必修A",
+      "schema:courseCode": "REQ-A",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/required"
+      }
+    },
+    {
+      "@id": "urdi:course/REQ-B",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "必修B",
+      "schema:courseCode": "REQ-B",
+      "schema:numberOfCredits": 4,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/required"
+      }
+    },
+    {
+      "@id": "urdi:course/THESIS",
+      "@type": [
+        "schema:Course",
+        "ccso:Course"
+      ],
+      "schema:name": "卒業研究",
+      "schema:courseCode": "THESIS",
+      "schema:numberOfCredits": 8,
+      "schema:provider": {
+        "@id": "urdi:organization/engineering"
+      },
+      "urd:courseCategory": {
+        "@id": "urdi:term/thesis"
+      }
+    },
+    {
+      "@id": "urdi:legislation/gakusoku-2026",
+      "@type": "schema:Legislation",
+      "schema:name": "2026年度学則",
+      "schema:legislationIdentifier": "学則",
+      "schema:legislationType": "学則",
+      "schema:legislationDate": {
+        "@value": "2026-04-01",
+        "@type": "xsd:date"
+      },
+      "schema:legislationJurisdiction": {
+        "@id": "urdi:organization/demo-university"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/gakusoku-2026/art32-1",
+      "@type": "schema:Legislation",
+      "schema:name": "卒業に必要な単位数",
+      "schema:legislationIdentifier": "第32条第1項",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/gakusoku-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/gakusoku-2026/art32-2",
+      "@type": "schema:Legislation",
+      "schema:name": "卒業に必要な必修科目",
+      "schema:legislationIdentifier": "第32条第2項",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/gakusoku-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/risyu-kitei-2026",
+      "@type": "schema:Legislation",
+      "schema:name": "2026年度履修規程",
+      "schema:legislationIdentifier": "履修規程",
+      "schema:legislationType": "規程",
+      "schema:legislationDate": {
+        "@value": "2026-04-01",
+        "@type": "xsd:date"
+      },
+      "schema:legislationJurisdiction": {
+        "@id": "urdi:organization/demo-university"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/risyu-kitei-2026/art5",
+      "@type": "schema:Legislation",
+      "schema:name": "履修登録の期限",
+      "schema:legislationIdentifier": "第5条",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/risyu-kitei-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/risyu-kitei-2026/art12",
+      "@type": "schema:Legislation",
+      "schema:name": "年間の履修登録単位数の上限",
+      "schema:legislationIdentifier": "第12条",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/risyu-kitei-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/kougakubu-saisoku-2026",
+      "@type": "schema:Legislation",
+      "schema:name": "2026年度工学部履修細則",
+      "schema:legislationIdentifier": "工学部履修細則",
+      "schema:legislationType": "細則",
+      "schema:legislationDate": {
+        "@value": "2026-04-01",
+        "@type": "xsd:date"
+      },
+      "schema:legislationJurisdiction": {
+        "@id": "urdi:organization/demo-university"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:legislation/kougakubu-saisoku-2026/art18",
+      "@type": "schema:Legislation",
+      "schema:name": "卒業研究の履修条件",
+      "schema:legislationIdentifier": "第18条",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/kougakubu-saisoku-2026"
+      },
+      "schema:inLanguage": "ja"
+    },
+    {
+      "@id": "urdi:student/S001",
+      "@type": [
+        "schema:Person",
+        "ccso:UndergraduateStudent"
+      ],
+      "schema:identifier": "S001",
+      "schema:name": "山田太郎",
+      "schema:affiliation": {
+        "@id": "urdi:organization/engineering"
+      },
+      "ccso:enrolledIn": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "urd:yearOfStudy": 3,
+      "ccso:hasCompleted": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        },
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        },
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        }
+      ],
+      "ccso:hasRegistered": [
+        {
+          "@id": "urdi:course/FND-13"
+        },
+        {
+          "@id": "urdi:course/FND-14"
+        },
+        {
+          "@id": "urdi:course/SPC-01"
+        },
+        {
+          "@id": "urdi:course/SPC-02"
+        },
+        {
+          "@id": "urdi:course/SPC-03"
+        },
+        {
+          "@id": "urdi:course/SPC-04"
+        },
+        {
+          "@id": "urdi:course/SPC-05"
+        },
+        {
+          "@id": "urdi:course/SPC-06"
+        },
+        {
+          "@id": "urdi:course/SPC-07"
+        },
+        {
+          "@id": "urdi:course/SPC-08"
+        },
+        {
+          "@id": "urdi:course/SPC-09"
+        },
+        {
+          "@id": "urdi:course/SPC-10"
+        },
+        {
+          "@id": "urdi:course/SPC-11"
+        },
+        {
+          "@id": "urdi:course/SPC-12"
+        },
+        {
+          "@id": "urdi:course/SPC-13"
+        },
+        {
+          "@id": "urdi:course/SPC-14"
+        }
+      ]
+    },
+    {
+      "@id": "urdi:action/S001/registration-2026-first",
+      "@type": "schema:RegisterAction",
+      "schema:name": "2026年度前期 履修登録",
+      "schema:agent": {
+        "@id": "urdi:student/S001"
+      },
+      "schema:object": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "schema:actionStatus": {
+        "@id": "schema:PotentialActionStatus"
+      },
+      "ccso:academicYear": "2026",
+      "urd:semester": "first"
+    },
+    {
+      "@id": "urdi:student/S002",
+      "@type": [
+        "schema:Person",
+        "ccso:UndergraduateStudent"
+      ],
+      "schema:identifier": "S002",
+      "schema:name": "鈴木花子",
+      "schema:affiliation": {
+        "@id": "urdi:organization/engineering"
+      },
+      "ccso:enrolledIn": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "urd:yearOfStudy": 4,
+      "ccso:hasCompleted": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/REQ-B"
+        },
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        },
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/GEN-21"
+        },
+        {
+          "@id": "urdi:course/GEN-22"
+        },
+        {
+          "@id": "urdi:course/GEN-23"
+        },
+        {
+          "@id": "urdi:course/GEN-24"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        },
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        },
+        {
+          "@id": "urdi:course/FND-13"
+        },
+        {
+          "@id": "urdi:course/FND-14"
+        },
+        {
+          "@id": "urdi:course/SPC-01"
+        },
+        {
+          "@id": "urdi:course/SPC-02"
+        },
+        {
+          "@id": "urdi:course/SPC-03"
+        }
+      ],
+      "ccso:hasRegistered": [
+        {
+          "@id": "urdi:course/SPC-04"
+        },
+        {
+          "@id": "urdi:course/SPC-05"
+        },
+        {
+          "@id": "urdi:course/SPC-06"
+        },
+        {
+          "@id": "urdi:course/SPC-07"
+        },
+        {
+          "@id": "urdi:course/SPC-08"
+        },
+        {
+          "@id": "urdi:course/SPC-09"
+        },
+        {
+          "@id": "urdi:course/SPC-10"
+        },
+        {
+          "@id": "urdi:course/SPC-11"
+        },
+        {
+          "@id": "urdi:course/SPC-12"
+        },
+        {
+          "@id": "urdi:course/SPC-13"
+        }
+      ]
+    },
+    {
+      "@id": "urdi:action/S002/registration-2026-first",
+      "@type": "schema:RegisterAction",
+      "schema:name": "2026年度前期 履修登録",
+      "schema:agent": {
+        "@id": "urdi:student/S002"
+      },
+      "schema:object": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2026",
+      "urd:semester": "first"
+    },
+    {
+      "@id": "urdi:student/S003",
+      "@type": [
+        "schema:Person",
+        "ccso:UndergraduateStudent"
+      ],
+      "schema:identifier": "S003",
+      "schema:name": "佐藤次郎",
+      "schema:affiliation": {
+        "@id": "urdi:organization/engineering"
+      },
+      "ccso:enrolledIn": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "urd:yearOfStudy": 4,
+      "ccso:hasCompleted": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/REQ-B"
+        },
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        },
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/GEN-21"
+        },
+        {
+          "@id": "urdi:course/GEN-22"
+        },
+        {
+          "@id": "urdi:course/GEN-23"
+        },
+        {
+          "@id": "urdi:course/GEN-24"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        },
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        },
+        {
+          "@id": "urdi:course/FND-13"
+        },
+        {
+          "@id": "urdi:course/FND-14"
+        },
+        {
+          "@id": "urdi:course/SPC-01"
+        },
+        {
+          "@id": "urdi:course/SPC-02"
+        },
+        {
+          "@id": "urdi:course/SPC-03"
+        },
+        {
+          "@id": "urdi:course/SPC-04"
+        },
+        {
+          "@id": "urdi:course/SPC-05"
+        },
+        {
+          "@id": "urdi:course/SPC-06"
+        },
+        {
+          "@id": "urdi:course/SPC-07"
+        }
+      ],
+      "ccso:hasRegistered": [
+        {
+          "@id": "urdi:course/THESIS"
+        },
+        {
+          "@id": "urdi:course/SPC-08"
+        },
+        {
+          "@id": "urdi:course/SPC-09"
+        }
+      ]
+    },
+    {
+      "@id": "urdi:action/S003/registration-2026-first",
+      "@type": "schema:RegisterAction",
+      "schema:name": "2026年度前期 履修登録",
+      "schema:agent": {
+        "@id": "urdi:student/S003"
+      },
+      "schema:object": {
+        "@id": "urdi:program/engineering-2026"
+      },
+      "schema:actionStatus": {
+        "@id": "schema:PotentialActionStatus"
+      },
+      "ccso:academicYear": "2026",
+      "urd:semester": "first"
+    }
+  ]
+}

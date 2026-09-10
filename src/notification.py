@@ -58,7 +58,7 @@ class NotificationService:
                     )
                 )
 
-        if student.grade >= 4:
+        if student.year_of_study >= 4:
             try:
                 graduation = self.rule_engine.evaluate_graduation(student)
             except ValueError:

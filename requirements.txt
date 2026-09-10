@@ -1,4 +1,5 @@
 streamlit>=1.36,<2
 pydantic>=2.7,<3
 PyYAML>=6.0,<7
+rdflib>=7.1,<8
 pytest>=8.2,<9

@@ -1,12 +1,18 @@
 settings:
-  # デモを再現可能にするため、実日付ではなく固定の基準日を使用する。
+  # デモを再現可能にするため、実日付ではなく固定の基準日を使用する（urd:evaluationDate）。
   evaluation_date: 2026-04-13
 
+# 各ルールは次の3つでオントロジーへ接続する。
+#   subject     … ルールが制約するノード（university_graph.jsonld の @id）
+#   legislation … 根拠となる条文ノード（schema:Legislation）の @id
+#   値のキー     … src/ontology.py の RULE_TYPE_ONTOLOGY が用語へ対応付ける
 rules:
   - rule_id: RULE-REG-001
     rule_type: registration_deadline
     title: 2026年度前期 履修登録期限
     source: 2026年度履修規程 第5条
+    subject: urdi:program/engineering-2026
+    legislation: urdi:legislation/risyu-kitei-2026/art5
     academic_year: 2026
     semester: first
     deadline: 2026-04-15
@@ -15,28 +21,36 @@ rules:
     rule_type: annual_credit_limit
     title: 年間履修上限
     source: 2026年度履修規程 第12条
+    subject: urdi:program/engineering-2026
+    legislation: urdi:legislation/risyu-kitei-2026/art12
     max_credits: 48
 
   - rule_id: RULE-GRAD-001
     rule_type: graduation_credit_requirement
     title: 卒業必要単位数
     source: 2026年度学則 第32条第1項
+    subject: urdi:program/engineering-2026
+    legislation: urdi:legislation/gakusoku-2026/art32-1
     required_credits: 124
 
   - rule_id: RULE-GRAD-002
     rule_type: graduation_required_courses
     title: 卒業必修科目
     source: 2026年度学則 第32条第2項
+    subject: urdi:program/engineering-2026
+    legislation: urdi:legislation/gakusoku-2026/art32-2
     required_courses:
-      - required_a
-      - required_b
+      - REQ-A
+      - REQ-B
 
   - rule_id: RULE-THESIS-001
     rule_type: thesis_eligibility
     title: 卒業研究履修条件
     source: 2026年度工学部履修細則 第18条
-    minimum_grade: 4
+    subject: urdi:course/THESIS
+    legislation: urdi:legislation/kougakubu-saisoku-2026/art18
+    minimum_year_of_study: 4
     minimum_earned_credits: 100
     required_courses:
-      - required_a
-      - required_b
+      - REQ-A
+      - REQ-B
