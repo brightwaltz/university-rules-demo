@@ -46,6 +46,20 @@
   </div>
   <div id="global-status"></div>
 
+  <section class="panel" id="export-panel" hidden style="margin-bottom:12px">
+    <header>書き出し<span class="muted" id="export-caption" style="font-weight:400"></span></header>
+    <div class="body">
+      <div class="row">
+        <button id="export-copy" class="primary">クリップボードにコピー</button>
+        <button id="export-download">ファイルとして保存</button>
+        <button id="export-close">閉じる</button>
+        <span class="muted" id="export-note"></span>
+      </div>
+      <textarea id="export-text" rows="14" spellcheck="false"
+                style="width:100%;font-family:var(--mono);font-size:.78rem"></textarea>
+    </div>
+  </section>
+
   <div class="graph-layout">
 
     <div>
@@ -2938,16 +2952,43 @@ function addEdge() {
 
 // --- 書き出し ---------------------------------------------------------------
 
-function download(filename, text, type) {
-  const blob = new Blob([text], { type });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+// 埋め込みビューアなど、ページ発のダウンロードが禁じられた環境でも取り出せるよう、
+// 本文をそのまま表示してコピーできるようにする。保存はその上の任意手段。
+function showExport(filename, text, type, caption) {
+  $("#export-text").value = text;
+  $("#export-caption").textContent = `　${caption}（${text.length.toLocaleString()} 文字）`;
+  $("#export-note").textContent = "";
+  const panel = $("#export-panel");
+  panel.hidden = false;
+
+  $("#export-copy").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      $("#export-note").textContent = "コピーしました。";
+    } catch (error) {
+      $("#export-text").select();
+      $("#export-note").textContent = "コピーできませんでした。本文を選択したので手動でコピーしてください。";
+    }
+  };
+  // 保存ボタンは、ダウンロードが許されない環境向けの版では取り除かれている。
+  const downloadButton = $("#export-download");
+  if (downloadButton) downloadButton.onclick = () => {
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $("#export-note").textContent = `${filename} を保存しました。`;
+    } catch (error) {
+      $("#export-note").textContent = "この環境では保存できません。コピーをお使いください。";
+    }
+  };
+  $("#export-close").onclick = () => { panel.hidden = true; };
+  panel.scrollIntoView({ block: "nearest" });
 }
 
 function exportYaml() {
@@ -2958,11 +2999,14 @@ function exportYaml() {
     + "# docs/graph.html で編集した内容です。取り込んだら\n"
     + "#   python scripts/sync_docs_data.py && python -m pytest\n"
     + "# を実行してください。\n";
-  download("ontology_graph.yaml", header + toYaml(doc.toDocument(), 0).replace(/^\n/, ""), "text/yaml");
+  showExport("ontology_graph.yaml",
+    header + toYaml(doc.toDocument(), 0).replace(/^\n/, ""), "text/yaml",
+    "data/ontology_graph.yaml として保存");
 }
 
 function exportJson() {
-  download("ontology_graph.json", JSON.stringify(doc.toDocument(), null, 2), "application/json");
+  showExport("ontology_graph.json", JSON.stringify(doc.toDocument(), null, 2),
+    "application/json", "JSON 形式");
 }
 
 // --- 起動 -------------------------------------------------------------------

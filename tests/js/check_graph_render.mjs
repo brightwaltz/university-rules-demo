@@ -47,6 +47,7 @@ class El {
   scrollIntoView() {}
   querySelector() { return new El("stub"); }
   querySelectorAll() { return []; }
+  select() {}
   getBoundingClientRect() { return { width: 900, height: 620, left: 0, top: 0 }; }
   get textContent() { return this._text; }
   set textContent(value) { this._text = value; this.children = []; }
@@ -68,6 +69,8 @@ for (const id of [
   "search", "grouping", "show-derived", "show-rationale", "relayout", "fit",
   "add-node", "add-edge", "add-hyper", "export-yaml", "export-json", "reset",
   "tree", "legend", "doc-meta", "graph-canvas", "graph-stats", "inspector", "global-status",
+  "export-panel", "export-text", "export-caption", "export-note",
+  "export-copy", "export-download", "export-close",
 ]) makeElement(id);
 
 byId.get("grouping").value = "layer";
@@ -150,6 +153,14 @@ step("グルーピング切替（囲まない）", () => {
 });
 step("全体表示", () => { probe("fitToScreen()"); return probe("JSON.stringify(view)"); });
 step("YAML書き出し", () => probe('toYaml(doc.toDocument(), 0).length'));
+step("書き出しパネル表示", () => {
+  probe("exportYaml()");
+  const panel = byId.get("export-panel");
+  const text = byId.get("export-text").value;
+  if (panel.hidden !== false) throw new Error("パネルが開いていません");
+  if (!text.includes("hypernodes:")) throw new Error("YAML本文が入っていません");
+  return text.length;
+});
 step("検証", () => probe("JSON.stringify(doc.validate())"));
 
 process.stdout.write(JSON.stringify(results, null, 1));
