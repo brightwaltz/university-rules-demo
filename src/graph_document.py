@@ -29,21 +29,9 @@ class GraphDocumentError(ValueError):
 
 NODE_KINDS = {"concept", "term", "rule-type", "vocabulary"}
 HYPERNODE_KINDS = {"layer", "domain", "rule-group", "rationale"}
-EDGE_KINDS = {
-    "uses",
-    "alternative",
-    "close-match",
-    "derived-from",
-    "defined-in",
-    "has-property",
-    "range",
-    "reuses",
-    "constrains",
-    "sets",
-    "reads",
-    "about",
-}
 TERM_KINDS = {"class", "property"}
+
+#: エッジの種類は文書の ``edge_kinds`` で定義する。ここには持たない。
 
 
 class Namespace(BaseModel):
@@ -78,6 +66,22 @@ class HyperNode(BaseModel):
     note: str | None = None
 
 
+class EdgeKind(BaseModel):
+    """エッジの種類そのものの定義。
+
+    エッジは ``kind`` で この id を指すだけにして、意味の説明は1箇所に集める。
+    ``reading`` は「{source} …… {target}」という読み下し文の型で、
+    個々のエッジを日本語の一文として表示するのに使う。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    label: str
+    description: str
+    reading: str
+
+
 class Edge(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -102,6 +106,10 @@ class GraphDocument:
         self.namespaces = [Namespace.model_validate(item) for item in raw.get("namespaces") or []]
         self.nodes = [Node.model_validate(item) for item in raw.get("nodes") or []]
         self.hypernodes = [HyperNode.model_validate(item) for item in raw.get("hypernodes") or []]
+        self.edge_kinds = [EdgeKind.model_validate(item) for item in raw.get("edge_kinds") or []]
+        self._edge_kinds_by_id = {kind.id: kind for kind in self.edge_kinds}
+        if len(self._edge_kinds_by_id) != len(self.edge_kinds):
+            raise GraphDocumentError("edge_kinds の id が重複しています。")
         self.explicit_edges = [
             Edge.model_validate({"id": self._edge_id(item), **item})
             for item in raw.get("edges") or []
@@ -170,14 +178,16 @@ class GraphDocument:
                 subject_class = getattr(node, "subject_class", None)
                 if not subject_class:
                     raise GraphDocumentError(f"rule-type に subject_class がありません: {node.id}")
-                add(node.id, subject_class, "constrains", "制約するクラス")
+                # 種類そのものが意味を持つので、補足ラベルは重複する分だけ省く。
+                # rule_terms だけは、どのYAMLキーかという固有の情報を残す。
+                add(node.id, subject_class, "constrains")
                 for yaml_key, curie in (getattr(node, "rule_terms", None) or {}).items():
                     add(node.id, curie, "sets", yaml_key)
                 for curie in getattr(node, "evaluated_terms", None) or []:
                     add(node.id, curie, "reads")
             if node.kind == "term":
                 for curie in getattr(node, "close_match", None) or []:
-                    add(node.id, curie, "close-match", "skos:closeMatch")
+                    add(node.id, curie, "close-match")
         return edges
 
     # --- 検証 -------------------------------------------------------------
@@ -219,8 +229,10 @@ class GraphDocument:
                 raise GraphDocumentError(f"rationale には statement が必要です: {hypernode.id}")
 
         for edge in self.edges:
-            if edge.kind not in EDGE_KINDS:
-                raise GraphDocumentError(f"未知の edge kind です: {edge.kind}（{edge.id}）")
+            if edge.kind not in self._edge_kinds_by_id:
+                raise GraphDocumentError(
+                    f"edge_kinds に定義の無い種類です: {edge.kind}（{edge.id}）"
+                )
             for endpoint in (edge.source, edge.target):
                 if endpoint not in self._by_id:
                     raise GraphDocumentError(f"エッジの端点が存在しません: {endpoint}")
@@ -296,6 +308,43 @@ class GraphDocument:
     def edges_of(self, node_id: str) -> list[Edge]:
         return [e for e in self.edges if e.source == node_id or e.target == node_id]
 
+    def edge_kind(self, kind_id: str) -> EdgeKind:
+        try:
+            return self._edge_kinds_by_id[kind_id]
+        except KeyError as exc:
+            raise GraphDocumentError(f"未定義の関係の種類です: {kind_id}") from exc
+
+    def label_of(self, node_id: str) -> str:
+        item = self._by_id.get(node_id)
+        return item.label if item else node_id
+
+    def endpoint_label(self, node_id: str) -> str:
+        """読み下し文に差し込む端点の呼び名。
+
+        用語は CURIE で示す。概念と用語で日本語名が同じことがあり
+        （概念「科目」と schema:Course の和名「科目」など）、ラベルのままだと
+        「科目 は 科目 で表す」という読めない文になるため。
+        """
+        item = self._by_id.get(node_id)
+        if item is None:
+            return node_id
+        curie = getattr(item, "curie", None)
+        return str(curie) if curie else item.label
+
+    def describe_edge(self, edge: Edge) -> str:
+        """エッジ1本を日本語の一文にする。
+
+        種類ごとの読み下し文に端点の呼び名を差し込む。そのエッジ固有の補足
+        （``label``）があれば括弧で添える。
+        """
+        kind = self.edge_kind(edge.kind)
+        sentence = kind.reading.format(
+            source=self.endpoint_label(edge.source), target=self.endpoint_label(edge.target)
+        )
+        if edge.label:
+            sentence = f"{sentence}（{edge.label}）"
+        return sentence
+
     # --- 射影 -------------------------------------------------------------
 
     def context(self) -> dict[str, str]:
@@ -353,11 +402,15 @@ class GraphDocument:
             "namespaces": [namespace.model_dump(exclude_none=True) for namespace in self.namespaces],
             "nodes": [node.model_dump(exclude_none=True) for node in self.nodes],
             "hypernodes": [h.model_dump(exclude_none=True) for h in self.hypernodes],
-            "edges": [edge.model_dump(exclude_none=True) for edge in self.edges],
+            "edge_kinds": [kind.model_dump() for kind in self.edge_kinds],
+            "edges": [
+                {**edge.model_dump(exclude_none=True), "reading": self.describe_edge(edge)}
+                for edge in self.edges
+            ],
             "kinds": {
                 "node": sorted(NODE_KINDS),
                 "hypernode": sorted(HYPERNODE_KINDS),
-                "edge": sorted(EDGE_KINDS),
+                "edge": [kind.id for kind in self.edge_kinds],
             },
         }
 
@@ -368,6 +421,7 @@ class GraphDocument:
             "namespaces": [n.model_dump(exclude_none=True) for n in self.namespaces],
             "hypernodes": [h.model_dump(exclude_none=True) for h in self.hypernodes],
             "nodes": [n.model_dump(exclude_none=True) for n in self.nodes],
+            "edge_kinds": [kind.model_dump() for kind in self.edge_kinds],
             "edges": [
                 {k: v for k, v in e.model_dump(exclude_none=True).items() if k != "derived"}
                 for e in self.explicit_edges

@@ -643,12 +643,62 @@ nodes:
       notify(Student, Message) :- condition_1(Student), ..., condition_n(Student),
       schema:text(Rule, Message).
 
+# --- 関係の種類 -------------------------------------------------------------
+# エッジの意味はここで定義する。エッジ側は id を指すだけにして、意味の説明を
+# 1箇所に集める。reading は「{source} …… {target}」という読み下し文の型で、
+# 画面と Python の両方が、個々のエッジを日本語の一文として表示するのに使う。
+edge_kinds:
+  - id: uses
+    label: で表す
+    description: その概念を本デモで表すのに採用した用語。語彙対応表の「本デモ」列はこの関係から作られる。
+    reading: "{source} は {target} で表す"
+  - id: alternative
+    label: 他語彙での対応
+    description: 同じ概念に対応する他の語彙の用語。本デモでは採用していないが、対応関係として記録する。
+    reading: "{source} は、他の語彙では {target} にあたる"
+  - id: close-match
+    label: 意味が近い
+    description: 意味が近いが同一ではない用語。skos:closeMatch として書き出す。同一視はしない。
+    reading: "{source} は {target} に意味が近い（同一ではない）"
+  - id: derived-from
+    label: から導出する
+    description: その用語の値が、別の用語をたどって計算されることを示す。
+    reading: "{source} は {target} をたどって導出する"
+  - id: defined-in
+    label: に属する
+    description: 語彙と、その語彙の用語が置かれているレイヤの対応。
+    reading: "{source} の用語は {target} にまとめてある"
+  - id: has-property
+    label: を持つ
+    description: そのクラスが持つ属性。
+    reading: "{source} は {target} を持つ"
+  - id: range
+    label: の値は
+    description: その属性が取る値のクラス。
+    reading: "{source} の値は {target} である"
+  - id: reuses
+    label: を再利用する
+    description: 他の語彙の用語を直接取り込んで使っていること。
+    reading: "{source} は {target} の用語を再利用している"
+  - id: constrains
+    label: を制約する
+    description: ルール種別が制約する主語のクラス。subject_class から自動生成される。
+    reading: "{source} は {target} に対する制約である"
+  - id: sets
+    label: の値を定める
+    description: ルールの設定値が対応する用語。rule_terms から自動生成される。
+    reading: "{source} は {target} の値を定める"
+  - id: reads
+    label: を読む
+    description: 判定のときに学生やグラフから読み取る用語。evaluated_terms から自動生成される。
+    reading: "{source} は判定のとき {target} を読む"
+  - id: about
+    label: について述べる
+    description: メタ知識のハイパーノードが、どの対象について述べているか。
+    reading: "{source} は {target} について述べている"
+
 # --- 明示的な関係 -----------------------------------------------------------
-# uses        … その概念を本デモで表すのに採用した用語
-# alternative … 他の語彙での対応する用語（採用はしていない）
-# close-match … 意味が近いが同一視しない（skos:closeMatch として出力される）
-# derived-from… その用語の値が、別の用語をたどって導出されることを示す
-# defined-in  … 用語がどの語彙に属するか
+# kind は上の edge_kinds の id を指す。label は、その1本だけに固有の補足。
 edges:
   # 組織
   - {source: concept/university, target: term/schema:CollegeOrUniversity, kind: uses}

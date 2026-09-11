@@ -26,12 +26,17 @@
 
   <div class="toolbar">
     <input id="search" type="search" placeholder="ノードを検索（ラベル・CURIE）" size="26">
+    <select id="layout" title="配置">
+      <option value="grid">整列（重ならない）</option>
+      <option value="force">力学</option>
+    </select>
     <select id="grouping" title="ハイパーノードの表示">
       <option value="layer">語彙レイヤで囲む</option>
       <option value="domain">業務領域で囲む</option>
       <option value="rule-group">ルール種別で囲む</option>
       <option value="none">囲まない</option>
     </select>
+    <label class="tag"><input type="checkbox" id="focus-mode" checked> 選択に関係する分だけ強調</label>
     <label class="tag"><input type="checkbox" id="show-derived" checked> 導出エッジ</label>
     <label class="tag"><input type="checkbox" id="show-rationale" checked> メタ知識</label>
     <span class="spacer"></span>
@@ -91,7 +96,7 @@
       <header>グラフ<span class="muted" id="graph-stats" style="font-weight:400"></span></header>
       <div class="body">
         <svg id="graph-canvas" role="img" aria-label="オントロジーの構造グラフ"></svg>
-        <div class="canvas-hint">ドラッグで移動／ホイールで拡大縮小／ノードをドラッグで固定／ハイパーノードをダブルクリックで折りたたみ</div>
+        <div class="canvas-hint">ノードをクリックすると関係する分だけ強調／ドラッグで移動／ホイールで拡大縮小／ハイパーノードをダブルクリックで折りたたみ</div>
       </div>
     </section>
 
@@ -1227,216 +1232,320 @@
    "statement": "「規則に基づく判定とその根拠」を表す語彙は schema.org にも CCSO にも無い。 判定・前提・Horn節・適用ルールは urd: に定義し、schema.org の用語を意味を曲げて流用しない。"
   }
  ],
+ "edge_kinds": [
+  {
+   "id": "uses",
+   "label": "で表す",
+   "description": "その概念を本デモで表すのに採用した用語。語彙対応表の「本デモ」列はこの関係から作られる。",
+   "reading": "{source} は {target} で表す"
+  },
+  {
+   "id": "alternative",
+   "label": "他語彙での対応",
+   "description": "同じ概念に対応する他の語彙の用語。本デモでは採用していないが、対応関係として記録する。",
+   "reading": "{source} は、他の語彙では {target} にあたる"
+  },
+  {
+   "id": "close-match",
+   "label": "意味が近い",
+   "description": "意味が近いが同一ではない用語。skos:closeMatch として書き出す。同一視はしない。",
+   "reading": "{source} は {target} に意味が近い（同一ではない）"
+  },
+  {
+   "id": "derived-from",
+   "label": "から導出する",
+   "description": "その用語の値が、別の用語をたどって計算されることを示す。",
+   "reading": "{source} は {target} をたどって導出する"
+  },
+  {
+   "id": "defined-in",
+   "label": "に属する",
+   "description": "語彙と、その語彙の用語が置かれているレイヤの対応。",
+   "reading": "{source} の用語は {target} にまとめてある"
+  },
+  {
+   "id": "has-property",
+   "label": "を持つ",
+   "description": "そのクラスが持つ属性。",
+   "reading": "{source} は {target} を持つ"
+  },
+  {
+   "id": "range",
+   "label": "の値は",
+   "description": "その属性が取る値のクラス。",
+   "reading": "{source} の値は {target} である"
+  },
+  {
+   "id": "reuses",
+   "label": "を再利用する",
+   "description": "他の語彙の用語を直接取り込んで使っていること。",
+   "reading": "{source} は {target} の用語を再利用している"
+  },
+  {
+   "id": "constrains",
+   "label": "を制約する",
+   "description": "ルール種別が制約する主語のクラス。subject_class から自動生成される。",
+   "reading": "{source} は {target} に対する制約である"
+  },
+  {
+   "id": "sets",
+   "label": "の値を定める",
+   "description": "ルールの設定値が対応する用語。rule_terms から自動生成される。",
+   "reading": "{source} は {target} の値を定める"
+  },
+  {
+   "id": "reads",
+   "label": "を読む",
+   "description": "判定のときに学生やグラフから読み取る用語。evaluated_terms から自動生成される。",
+   "reading": "{source} は判定のとき {target} を読む"
+  },
+  {
+   "id": "about",
+   "label": "について述べる",
+   "description": "メタ知識のハイパーノードが、どの対象について述べているか。",
+   "reading": "{source} は {target} について述べている"
+  }
+ ],
  "edges": [
   {
    "id": "edge/uses/concept/university->term/schema:CollegeOrUniversity",
    "source": "concept/university",
    "target": "term/schema:CollegeOrUniversity",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "大学 は schema:CollegeOrUniversity で表す"
   },
   {
    "id": "edge/alternative/concept/university->term/ccso:University",
    "source": "concept/university",
    "target": "term/ccso:University",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "大学 は、他の語彙では ccso:University にあたる"
   },
   {
    "id": "edge/uses/concept/faculty->term/schema:EducationalOrganization",
    "source": "concept/faculty",
    "target": "term/schema:EducationalOrganization",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "学部 は schema:EducationalOrganization で表す"
   },
   {
    "id": "edge/alternative/concept/faculty->term/ccso:School",
    "source": "concept/faculty",
    "target": "term/ccso:School",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "学部 は、他の語彙では ccso:School にあたる"
   },
   {
    "id": "edge/uses/concept/program->term/schema:EducationalOccupationalProgram",
    "source": "concept/program",
    "target": "term/schema:EducationalOccupationalProgram",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "課程・プログラム は schema:EducationalOccupationalProgram で表す"
   },
   {
    "id": "edge/alternative/concept/program->term/ccso:ProgramofStudy",
    "source": "concept/program",
    "target": "term/ccso:ProgramofStudy",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "課程・プログラム は、他の語彙では ccso:ProgramofStudy にあたる"
   },
   {
    "id": "edge/alternative/concept/program->term/oloud:studyProgramme",
    "source": "concept/program",
    "target": "term/oloud:studyProgramme",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "課程・プログラム は、他の語彙では oloud:studyProgramme にあたる"
   },
   {
    "id": "edge/uses/concept/credential->term/schema:EducationalOccupationalCredential",
    "source": "concept/credential",
    "target": "term/schema:EducationalOccupationalCredential",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "学位 は schema:EducationalOccupationalCredential で表す"
   },
   {
    "id": "edge/alternative/concept/credential->term/oloud:degree",
    "source": "concept/credential",
    "target": "term/oloud:degree",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "学位 は、他の語彙では oloud:degree にあたる"
   },
   {
    "id": "edge/uses/concept/course->term/schema:Course",
    "source": "concept/course",
    "target": "term/schema:Course",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "科目 は schema:Course で表す"
   },
   {
    "id": "edge/alternative/concept/course->term/ccso:Course",
    "source": "concept/course",
    "target": "term/ccso:Course",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "科目 は、他の語彙では ccso:Course にあたる"
   },
   {
    "id": "edge/uses/concept/credits->term/schema:numberOfCredits",
    "source": "concept/credits",
    "target": "term/schema:numberOfCredits",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "単位数 は schema:numberOfCredits で表す"
   },
   {
    "id": "edge/alternative/concept/credits->term/ccso:creditsECTS",
    "source": "concept/credits",
    "target": "term/ccso:creditsECTS",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "単位数 は、他の語彙では ccso:creditsECTS にあたる"
   },
   {
    "id": "edge/alternative/concept/credits->term/oloud:subjectCredit",
    "source": "concept/credits",
    "target": "term/oloud:subjectCredit",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "単位数 は、他の語彙では oloud:subjectCredit にあたる"
   },
   {
    "id": "edge/uses/concept/course-code->term/schema:courseCode",
    "source": "concept/course-code",
    "target": "term/schema:courseCode",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "科目コード は schema:courseCode で表す"
   },
   {
    "id": "edge/alternative/concept/course-code->term/ccso:code",
    "source": "concept/course-code",
    "target": "term/ccso:code",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "科目コード は、他の語彙では ccso:code にあたる"
   },
   {
    "id": "edge/uses/concept/required-course->term/urd:requiredCourse",
    "source": "concept/required-course",
    "target": "term/urd:requiredCourse",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "卒業必修科目 は urd:requiredCourse で表す"
   },
   {
    "id": "edge/alternative/concept/required-course->term/schema:programPrerequisites",
    "source": "concept/required-course",
    "target": "term/schema:programPrerequisites",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "卒業必修科目 は、他の語彙では schema:programPrerequisites にあたる"
   },
   {
    "id": "edge/alternative/concept/required-course->term/ccso:hasPrerequisite",
    "source": "concept/required-course",
    "target": "term/ccso:hasPrerequisite",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "卒業必修科目 は、他の語彙では ccso:hasPrerequisite にあたる"
   },
   {
    "id": "edge/alternative/concept/required-course->term/oloud:subjectRequires",
    "source": "concept/required-course",
    "target": "term/oloud:subjectRequires",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "卒業必修科目 は、他の語彙では oloud:subjectRequires にあたる"
   },
   {
    "id": "edge/uses/concept/student->term/schema:Person",
    "source": "concept/student",
    "target": "term/schema:Person",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "学生 は schema:Person で表す"
   },
   {
    "id": "edge/uses/concept/student->term/ccso:UndergraduateStudent",
    "source": "concept/student",
    "target": "term/ccso:UndergraduateStudent",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "学生 は ccso:UndergraduateStudent で表す"
   },
   {
    "id": "edge/alternative/concept/student->term/ccso:Student",
    "source": "concept/student",
    "target": "term/ccso:Student",
    "kind": "alternative",
-   "derived": false
+   "derived": false,
+   "reading": "学生 は、他の語彙では ccso:Student にあたる"
   },
   {
    "id": "edge/uses/concept/enrollment->term/ccso:enrolledIn",
    "source": "concept/enrollment",
    "target": "term/ccso:enrolledIn",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "在籍 は ccso:enrolledIn で表す"
   },
   {
    "id": "edge/uses/concept/completed-course->term/ccso:hasCompleted",
    "source": "concept/completed-course",
    "target": "term/ccso:hasCompleted",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "修得済み科目 は ccso:hasCompleted で表す"
   },
   {
    "id": "edge/uses/concept/registered-course->term/ccso:hasRegistered",
    "source": "concept/registered-course",
    "target": "term/ccso:hasRegistered",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "履修登録済み科目 は ccso:hasRegistered で表す"
   },
   {
    "id": "edge/uses/concept/registration-action->term/schema:RegisterAction",
    "source": "concept/registration-action",
    "target": "term/schema:RegisterAction",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "履修登録という行為と状態 は schema:RegisterAction で表す"
   },
   {
    "id": "edge/uses/concept/registration-action->term/schema:actionStatus",
    "source": "concept/registration-action",
    "target": "term/schema:actionStatus",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "履修登録という行為と状態 は schema:actionStatus で表す"
   },
   {
    "id": "edge/uses/concept/year-of-study->term/urd:yearOfStudy",
    "source": "concept/year-of-study",
    "target": "term/urd:yearOfStudy",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "学年 は urd:yearOfStudy で表す"
   },
   {
    "id": "edge/uses/concept/earned-credits->term/urd:earnedCredits",
    "source": "concept/earned-credits",
    "target": "term/urd:earnedCredits",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "修得単位数の合計 は urd:earnedCredits で表す"
   },
   {
    "id": "edge/derived-from/term/urd:earnedCredits->term/ccso:hasCompleted",
@@ -1444,7 +1553,8 @@
    "target": "term/ccso:hasCompleted",
    "kind": "derived-from",
    "label": "修得科目をたどって",
-   "derived": false
+   "derived": false,
+   "reading": "urd:earnedCredits は ccso:hasCompleted をたどって導出する（修得科目をたどって）"
   },
   {
    "id": "edge/derived-from/term/urd:earnedCredits->term/schema:numberOfCredits",
@@ -1452,161 +1562,184 @@
    "target": "term/schema:numberOfCredits",
    "kind": "derived-from",
    "label": "単位数を合計",
-   "derived": false
+   "derived": false,
+   "reading": "urd:earnedCredits は schema:numberOfCredits をたどって導出する（単位数を合計）"
   },
   {
    "id": "edge/derived-from/term/urd:registeredCredits->term/ccso:hasRegistered",
    "source": "term/urd:registeredCredits",
    "target": "term/ccso:hasRegistered",
    "kind": "derived-from",
-   "derived": false
+   "derived": false,
+   "reading": "urd:registeredCredits は ccso:hasRegistered をたどって導出する"
   },
   {
    "id": "edge/derived-from/term/urd:registeredCredits->term/schema:numberOfCredits",
    "source": "term/urd:registeredCredits",
    "target": "term/schema:numberOfCredits",
    "kind": "derived-from",
-   "derived": false
+   "derived": false,
+   "reading": "urd:registeredCredits は schema:numberOfCredits をたどって導出する"
   },
   {
    "id": "edge/uses/concept/legislation->term/schema:Legislation",
    "source": "concept/legislation",
    "target": "term/schema:Legislation",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "学則・履修規程 は schema:Legislation で表す"
   },
   {
    "id": "edge/uses/concept/rule->term/urd:Rule",
    "source": "concept/rule",
    "target": "term/urd:Rule",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "ルール は urd:Rule で表す"
   },
   {
    "id": "edge/uses/concept/registration-deadline->term/schema:applicationDeadline",
    "source": "concept/registration-deadline",
    "target": "term/schema:applicationDeadline",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "履修登録期限 は schema:applicationDeadline で表す"
   },
   {
    "id": "edge/uses/concept/annual-credit-limit->term/urd:annualCreditLimit",
    "source": "concept/annual-credit-limit",
    "target": "term/urd:annualCreditLimit",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "年間履修上限 は urd:annualCreditLimit で表す"
   },
   {
    "id": "edge/has-property/term/urd:Rule->term/urd:constrains",
    "source": "term/urd:Rule",
    "target": "term/urd:constrains",
    "kind": "has-property",
-   "derived": false
+   "derived": false,
+   "reading": "urd:Rule は urd:constrains を持つ"
   },
   {
    "id": "edge/has-property/term/urd:Rule->term/urd:basedOnLegislation",
    "source": "term/urd:Rule",
    "target": "term/urd:basedOnLegislation",
    "kind": "has-property",
-   "derived": false
+   "derived": false,
+   "reading": "urd:Rule は urd:basedOnLegislation を持つ"
   },
   {
    "id": "edge/range/term/urd:basedOnLegislation->term/schema:Legislation",
    "source": "term/urd:basedOnLegislation",
    "target": "term/schema:Legislation",
    "kind": "range",
-   "derived": false
+   "derived": false,
+   "reading": "urd:basedOnLegislation の値は schema:Legislation である"
   },
   {
    "id": "edge/uses/concept/decision->term/urd:DecisionResult",
    "source": "concept/decision",
    "target": "term/urd:DecisionResult",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "判定結果 は urd:DecisionResult で表す"
   },
   {
    "id": "edge/uses/concept/premise->term/urd:Premise",
    "source": "concept/premise",
    "target": "term/urd:Premise",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "判定の前提 は urd:Premise で表す"
   },
   {
    "id": "edge/uses/concept/notification->term/schema:Message",
    "source": "concept/notification",
    "target": "term/schema:Message",
    "kind": "uses",
-   "derived": false
+   "derived": false,
+   "reading": "通知 は schema:Message で表す"
   },
   {
    "id": "edge/has-property/term/urd:DecisionResult->term/urd:premise",
    "source": "term/urd:DecisionResult",
    "target": "term/urd:premise",
    "kind": "has-property",
-   "derived": false
+   "derived": false,
+   "reading": "urd:DecisionResult は urd:premise を持つ"
   },
   {
    "id": "edge/has-property/term/urd:DecisionResult->term/urd:hornClause",
    "source": "term/urd:DecisionResult",
    "target": "term/urd:hornClause",
    "kind": "has-property",
-   "derived": false
+   "derived": false,
+   "reading": "urd:DecisionResult は urd:hornClause を持つ"
   },
   {
    "id": "edge/has-property/term/urd:DecisionResult->term/urd:usesTerm",
    "source": "term/urd:DecisionResult",
    "target": "term/urd:usesTerm",
    "kind": "has-property",
-   "derived": false
+   "derived": false,
+   "reading": "urd:DecisionResult は urd:usesTerm を持つ"
   },
   {
    "id": "edge/has-property/term/urd:DecisionResult->term/urd:status",
    "source": "term/urd:DecisionResult",
    "target": "term/urd:status",
    "kind": "has-property",
-   "derived": false
+   "derived": false,
+   "reading": "urd:DecisionResult は urd:status を持つ"
   },
   {
    "id": "edge/range/term/urd:premise->term/urd:Premise",
    "source": "term/urd:premise",
    "target": "term/urd:Premise",
    "kind": "range",
-   "derived": false
+   "derived": false,
+   "reading": "urd:premise の値は urd:Premise である"
   },
   {
    "id": "edge/has-property/term/schema:Message->term/urd:decision",
    "source": "term/schema:Message",
    "target": "term/urd:decision",
    "kind": "has-property",
-   "derived": false
+   "derived": false,
+   "reading": "schema:Message は urd:decision を持つ"
   },
   {
    "id": "edge/defined-in/vocabulary/schema-org->layer/schema-org",
    "source": "vocabulary/schema-org",
    "target": "layer/schema-org",
    "kind": "defined-in",
-   "derived": false
+   "derived": false,
+   "reading": "schema.org の用語は schema.org 層 にまとめてある"
   },
   {
    "id": "edge/defined-in/vocabulary/ccso->layer/ccso",
    "source": "vocabulary/ccso",
    "target": "layer/ccso",
    "kind": "defined-in",
-   "derived": false
+   "derived": false,
+   "reading": "CCSO の用語は CCSO 層 にまとめてある"
   },
   {
    "id": "edge/defined-in/vocabulary/oloud->layer/reference",
    "source": "vocabulary/oloud",
    "target": "layer/reference",
    "kind": "defined-in",
-   "derived": false
+   "derived": false,
+   "reading": "OLOUD の用語は 参照のみの語彙 にまとめてある"
   },
   {
    "id": "edge/defined-in/vocabulary/local->layer/local",
    "source": "vocabulary/local",
    "target": "layer/local",
    "kind": "defined-in",
-   "derived": false
+   "derived": false,
+   "reading": "ローカル拡張 の用語は ローカル拡張層（urd:） にまとめてある"
   },
   {
    "id": "edge/reuses/vocabulary/ccso->vocabulary/schema-org",
@@ -1614,63 +1747,64 @@
    "target": "vocabulary/schema-org",
    "kind": "reuses",
    "label": "CCSO は schema:Organization を再利用",
-   "derived": false
+   "derived": false,
+   "reading": "CCSO は schema.org の用語を再利用している（CCSO は schema:Organization を再利用）"
   },
   {
    "id": "edge/close-match/term/urd:requiredCourse->term/schema:programPrerequisites",
    "source": "term/urd:requiredCourse",
    "target": "term/schema:programPrerequisites",
    "kind": "close-match",
-   "label": "skos:closeMatch",
-   "derived": true
+   "derived": true,
+   "reading": "urd:requiredCourse は schema:programPrerequisites に意味が近い（同一ではない）"
   },
   {
    "id": "edge/close-match/term/urd:requiredCourse->term/ccso:hasPrerequisite",
    "source": "term/urd:requiredCourse",
    "target": "term/ccso:hasPrerequisite",
    "kind": "close-match",
-   "label": "skos:closeMatch",
-   "derived": true
+   "derived": true,
+   "reading": "urd:requiredCourse は ccso:hasPrerequisite に意味が近い（同一ではない）"
   },
   {
    "id": "edge/close-match/term/urd:minimumEarnedCredits->term/schema:coursePrerequisites",
    "source": "term/urd:minimumEarnedCredits",
    "target": "term/schema:coursePrerequisites",
    "kind": "close-match",
-   "label": "skos:closeMatch",
-   "derived": true
+   "derived": true,
+   "reading": "urd:minimumEarnedCredits は schema:coursePrerequisites に意味が近い（同一ではない）"
   },
   {
    "id": "edge/close-match/term/urd:courseCategory->term/schema:about",
    "source": "term/urd:courseCategory",
    "target": "term/schema:about",
    "kind": "close-match",
-   "label": "skos:closeMatch",
-   "derived": true
+   "derived": true,
+   "reading": "urd:courseCategory は schema:about に意味が近い（同一ではない）"
   },
   {
    "id": "edge/close-match/term/urd:semester->term/oloud:courseTerm",
    "source": "term/urd:semester",
    "target": "term/oloud:courseTerm",
    "kind": "close-match",
-   "label": "skos:closeMatch",
-   "derived": true
+   "derived": true,
+   "reading": "urd:semester は oloud:courseTerm に意味が近い（同一ではない）"
   },
   {
    "id": "edge/close-match/term/urd:basedOnLegislation->term/schema:citation",
    "source": "term/urd:basedOnLegislation",
    "target": "term/schema:citation",
    "kind": "close-match",
-   "label": "skos:closeMatch",
-   "derived": true
+   "derived": true,
+   "reading": "urd:basedOnLegislation は schema:citation に意味が近い（同一ではない）"
   },
   {
    "id": "edge/constrains/rule-type/registration_deadline->term/schema:EducationalOccupationalProgram",
    "source": "rule-type/registration_deadline",
    "target": "term/schema:EducationalOccupationalProgram",
    "kind": "constrains",
-   "label": "制約するクラス",
-   "derived": true
+   "derived": true,
+   "reading": "履修登録期限 は schema:EducationalOccupationalProgram に対する制約である"
   },
   {
    "id": "edge/sets/rule-type/registration_deadline->term/schema:applicationDeadline",
@@ -1678,22 +1812,24 @@
    "target": "term/schema:applicationDeadline",
    "kind": "sets",
    "label": "deadline",
-   "derived": true
+   "derived": true,
+   "reading": "履修登録期限 は schema:applicationDeadline の値を定める（deadline）"
   },
   {
    "id": "edge/reads/rule-type/registration_deadline->term/urd:evaluationDate",
    "source": "rule-type/registration_deadline",
    "target": "term/urd:evaluationDate",
    "kind": "reads",
-   "derived": true
+   "derived": true,
+   "reading": "履修登録期限 は判定のとき urd:evaluationDate を読む"
   },
   {
    "id": "edge/constrains/rule-type/annual_credit_limit->term/schema:EducationalOccupationalProgram",
    "source": "rule-type/annual_credit_limit",
    "target": "term/schema:EducationalOccupationalProgram",
    "kind": "constrains",
-   "label": "制約するクラス",
-   "derived": true
+   "derived": true,
+   "reading": "年間履修上限 は schema:EducationalOccupationalProgram に対する制約である"
   },
   {
    "id": "edge/sets/rule-type/annual_credit_limit->term/urd:annualCreditLimit",
@@ -1701,29 +1837,32 @@
    "target": "term/urd:annualCreditLimit",
    "kind": "sets",
    "label": "max_credits",
-   "derived": true
+   "derived": true,
+   "reading": "年間履修上限 は urd:annualCreditLimit の値を定める（max_credits）"
   },
   {
    "id": "edge/reads/rule-type/annual_credit_limit->term/ccso:hasRegistered",
    "source": "rule-type/annual_credit_limit",
    "target": "term/ccso:hasRegistered",
    "kind": "reads",
-   "derived": true
+   "derived": true,
+   "reading": "年間履修上限 は判定のとき ccso:hasRegistered を読む"
   },
   {
    "id": "edge/reads/rule-type/annual_credit_limit->term/schema:numberOfCredits",
    "source": "rule-type/annual_credit_limit",
    "target": "term/schema:numberOfCredits",
    "kind": "reads",
-   "derived": true
+   "derived": true,
+   "reading": "年間履修上限 は判定のとき schema:numberOfCredits を読む"
   },
   {
    "id": "edge/constrains/rule-type/graduation_credit_requirement->term/schema:EducationalOccupationalProgram",
    "source": "rule-type/graduation_credit_requirement",
    "target": "term/schema:EducationalOccupationalProgram",
    "kind": "constrains",
-   "label": "制約するクラス",
-   "derived": true
+   "derived": true,
+   "reading": "卒業必要単位数 は schema:EducationalOccupationalProgram に対する制約である"
   },
   {
    "id": "edge/sets/rule-type/graduation_credit_requirement->term/schema:numberOfCredits",
@@ -1731,22 +1870,24 @@
    "target": "term/schema:numberOfCredits",
    "kind": "sets",
    "label": "required_credits",
-   "derived": true
+   "derived": true,
+   "reading": "卒業必要単位数 は schema:numberOfCredits の値を定める（required_credits）"
   },
   {
    "id": "edge/reads/rule-type/graduation_credit_requirement->term/urd:earnedCredits",
    "source": "rule-type/graduation_credit_requirement",
    "target": "term/urd:earnedCredits",
    "kind": "reads",
-   "derived": true
+   "derived": true,
+   "reading": "卒業必要単位数 は判定のとき urd:earnedCredits を読む"
   },
   {
    "id": "edge/constrains/rule-type/graduation_required_courses->term/schema:EducationalOccupationalProgram",
    "source": "rule-type/graduation_required_courses",
    "target": "term/schema:EducationalOccupationalProgram",
    "kind": "constrains",
-   "label": "制約するクラス",
-   "derived": true
+   "derived": true,
+   "reading": "卒業必修科目 は schema:EducationalOccupationalProgram に対する制約である"
   },
   {
    "id": "edge/sets/rule-type/graduation_required_courses->term/urd:requiredCourse",
@@ -1754,22 +1895,24 @@
    "target": "term/urd:requiredCourse",
    "kind": "sets",
    "label": "required_courses",
-   "derived": true
+   "derived": true,
+   "reading": "卒業必修科目 は urd:requiredCourse の値を定める（required_courses）"
   },
   {
    "id": "edge/reads/rule-type/graduation_required_courses->term/ccso:hasCompleted",
    "source": "rule-type/graduation_required_courses",
    "target": "term/ccso:hasCompleted",
    "kind": "reads",
-   "derived": true
+   "derived": true,
+   "reading": "卒業必修科目 は判定のとき ccso:hasCompleted を読む"
   },
   {
    "id": "edge/constrains/rule-type/thesis_eligibility->term/schema:Course",
    "source": "rule-type/thesis_eligibility",
    "target": "term/schema:Course",
    "kind": "constrains",
-   "label": "制約するクラス",
-   "derived": true
+   "derived": true,
+   "reading": "卒業研究履修条件 は schema:Course に対する制約である"
   },
   {
    "id": "edge/sets/rule-type/thesis_eligibility->term/schema:coursePrerequisites",
@@ -1777,7 +1920,8 @@
    "target": "term/schema:coursePrerequisites",
    "kind": "sets",
    "label": "required_courses",
-   "derived": true
+   "derived": true,
+   "reading": "卒業研究履修条件 は schema:coursePrerequisites の値を定める（required_courses）"
   },
   {
    "id": "edge/sets/rule-type/thesis_eligibility->term/urd:minimumYearOfStudy",
@@ -1785,7 +1929,8 @@
    "target": "term/urd:minimumYearOfStudy",
    "kind": "sets",
    "label": "minimum_year_of_study",
-   "derived": true
+   "derived": true,
+   "reading": "卒業研究履修条件 は urd:minimumYearOfStudy の値を定める（minimum_year_of_study）"
   },
   {
    "id": "edge/sets/rule-type/thesis_eligibility->term/urd:minimumEarnedCredits",
@@ -1793,36 +1938,40 @@
    "target": "term/urd:minimumEarnedCredits",
    "kind": "sets",
    "label": "minimum_earned_credits",
-   "derived": true
+   "derived": true,
+   "reading": "卒業研究履修条件 は urd:minimumEarnedCredits の値を定める（minimum_earned_credits）"
   },
   {
    "id": "edge/reads/rule-type/thesis_eligibility->term/urd:yearOfStudy",
    "source": "rule-type/thesis_eligibility",
    "target": "term/urd:yearOfStudy",
    "kind": "reads",
-   "derived": true
+   "derived": true,
+   "reading": "卒業研究履修条件 は判定のとき urd:yearOfStudy を読む"
   },
   {
    "id": "edge/reads/rule-type/thesis_eligibility->term/urd:earnedCredits",
    "source": "rule-type/thesis_eligibility",
    "target": "term/urd:earnedCredits",
    "kind": "reads",
-   "derived": true
+   "derived": true,
+   "reading": "卒業研究履修条件 は判定のとき urd:earnedCredits を読む"
   },
   {
    "id": "edge/reads/rule-type/thesis_eligibility->term/ccso:hasCompleted",
    "source": "rule-type/thesis_eligibility",
    "target": "term/ccso:hasCompleted",
    "kind": "reads",
-   "derived": true
+   "derived": true,
+   "reading": "卒業研究履修条件 は判定のとき ccso:hasCompleted を読む"
   },
   {
    "id": "edge/constrains/rule-type/personalized_notification->term/schema:Person",
    "source": "rule-type/personalized_notification",
    "target": "term/schema:Person",
    "kind": "constrains",
-   "label": "制約するクラス",
-   "derived": true
+   "derived": true,
+   "reading": "個別通知ルール は schema:Person に対する制約である"
   },
   {
    "id": "edge/sets/rule-type/personalized_notification->term/schema:text",
@@ -1830,7 +1979,8 @@
    "target": "term/schema:text",
    "kind": "sets",
    "label": "message",
-   "derived": true
+   "derived": true,
+   "reading": "個別通知ルール は schema:text の値を定める（message）"
   },
   {
    "id": "edge/sets/rule-type/personalized_notification->term/urd:notificationLevel",
@@ -1838,7 +1988,8 @@
    "target": "term/urd:notificationLevel",
    "kind": "sets",
    "label": "level",
-   "derived": true
+   "derived": true,
+   "reading": "個別通知ルール は urd:notificationLevel の値を定める（level）"
   }
  ],
  "kinds": {
@@ -1855,18 +2006,18 @@
    "rule-group"
   ],
   "edge": [
-   "about",
+   "uses",
    "alternative",
    "close-match",
-   "constrains",
-   "defined-in",
    "derived-from",
+   "defined-in",
    "has-property",
    "range",
-   "reads",
    "reuses",
+   "constrains",
    "sets",
-   "uses"
+   "reads",
+   "about"
   ]
  }
 }
@@ -1886,8 +2037,7 @@ const EMBEDDED = JSON.parse(document.getElementById("ontology-graph").textConten
 
 const NODE_KINDS = ["concept", "term", "rule-type", "vocabulary"];
 const HYPERNODE_KINDS = ["layer", "domain", "rule-group", "rationale"];
-const EDGE_KINDS = ["uses", "alternative", "close-match", "derived-from", "defined-in",
-  "has-property", "range", "reuses", "constrains", "sets", "reads", "about"];
+// エッジの種類は文書の edge_kinds が定義する。ここには持たない。
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -1898,8 +2048,30 @@ class GraphDoc {
     this.namespaces = clone(raw.namespaces || []);
     this.nodes = clone(raw.nodes || []);
     this.hypernodes = clone(raw.hypernodes || []);
+    this.edgeKinds = clone(raw.edge_kinds || EMBEDDED.edge_kinds || []);
     // 埋め込みデータには導出エッジも入っているので、明示エッジだけを残す。
-    this.edges = clone(raw.edges || []).filter((edge) => !edge.derived);
+    // reading は表示用に付けて配るだけなので、文書としては持たない。
+    this.edges = clone(raw.edges || []).filter((edge) => !edge.derived)
+      .map(({ reading, ...edge }) => edge);
+  }
+
+  edgeKind(id) {
+    return this.edgeKinds.find((kind) => kind.id === id) || null;
+  }
+
+  /** エッジ1本を日本語の一文にする。用語は CURIE で示す（和名が概念と重なるため）。 */
+  describeEdge(edge) {
+    const kind = this.edgeKind(edge.kind);
+    if (!kind) return `${edge.source} → ${edge.target}（${edge.kind}）`;
+    const name = (id) => {
+      const item = this.byId(id);
+      if (!item) return id;
+      return item.curie || item.label;
+    };
+    const sentence = kind.reading
+      .replace("{source}", name(edge.source))
+      .replace("{target}", name(edge.target));
+    return edge.label ? `${sentence}（${edge.label}）` : sentence;
   }
 
   get all() { return [...this.nodes, ...this.hypernodes]; }
@@ -1929,12 +2101,13 @@ class GraphDoc {
     };
     for (const node of this.nodes) {
       if (node.kind === "rule-type") {
-        if (node.subject_class) add(node.id, node.subject_class, "constrains", "制約するクラス");
+        // 種類そのものが意味を持つので、補足ラベルは重複する分だけ省く。
+        if (node.subject_class) add(node.id, node.subject_class, "constrains", null);
         for (const [key, curie] of Object.entries(node.rule_terms || {})) add(node.id, curie, "sets", key);
         for (const curie of node.evaluated_terms || []) add(node.id, curie, "reads", null);
       }
       if (node.kind === "term") {
-        for (const curie of node.close_match || []) add(node.id, curie, "close-match", "skos:closeMatch");
+        for (const curie of node.close_match || []) add(node.id, curie, "close-match", null);
       }
     }
     return edges;
@@ -2023,7 +2196,9 @@ class GraphDoc {
       if (hyper.kind === "rationale" && !hyper.statement) problems.push(`rationale に statement が必要: ${hyper.id}`);
     }
     for (const edge of this.allEdges()) {
-      if (!EDGE_KINDS.includes(edge.kind)) problems.push(`未知の edge kind: ${edge.kind}（${edge.id}）`);
+      if (!this.edgeKind(edge.kind)) {
+        problems.push(`edge_kinds に定義の無い種類: ${edge.kind}（${edge.id}）`);
+      }
       for (const endpoint of [edge.source, edge.target]) {
         if (!ids.has(endpoint)) problems.push(`エッジの端点がありません: ${endpoint}`);
       }
@@ -2055,8 +2230,9 @@ class GraphDoc {
       namespaces: this.namespaces,
       hypernodes: this.hypernodes,
       nodes: this.nodes,
+      edge_kinds: this.edgeKinds,
       edges: this.edges.map((edge) => {
-        const { derived, ...rest } = edge;
+        const { derived, reading, ...rest } = edge;
         return rest;
       }),
     };
@@ -2270,9 +2446,11 @@ function visibleGraph() {
 // --- 力学レイアウト ---------------------------------------------------------
 
 function runLayout(graph, iterations = 260) {
-  const width = 900;
-  const height = 620;
   const nodes = graph.nodes;
+  // ノード数に応じて面積を広げる。固定サイズだと件数が増えるほど潰れて読めなくなる。
+  const span = Math.sqrt(Math.max(nodes.length, 1)) * 150;
+  const width = Math.max(900, span);
+  const height = Math.max(620, span * 0.7);
   const index = new Map(nodes.map((node, i) => [node.id, i]));
 
   const state = nodes.map((node, i) => {
@@ -2342,7 +2520,94 @@ function runLayout(graph, iterations = 260) {
     }
   }
 
+  separate(state);
   for (const item of state) positions.set(item.id, { x: item.x, y: item.y, pinned: item.pinned });
+}
+
+/** 矩形として重なっているノードを押し離す。力学だけでは必ず重なるため。 */
+function separate(state, passes = 80) {
+  const gapX = NODE_W + 26;
+  const gapY = NODE_H + 20;
+  for (let pass = 0; pass < passes; pass += 1) {
+    let moved = false;
+    for (let i = 0; i < state.length; i += 1) {
+      for (let j = i + 1; j < state.length; j += 1) {
+        const a = state[i];
+        const b = state[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const overlapX = gapX - Math.abs(dx);
+        const overlapY = gapY - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+        moved = true;
+        // 食い込みが浅い軸へ逃がすと、並びが崩れにくい。
+        if (overlapX / gapX < overlapY / gapY) {
+          const push = (overlapX / 2 + 0.5) * (dx < 0 ? -1 : 1);
+          if (!a.pinned) a.x -= push;
+          if (!b.pinned) b.x += push;
+        } else {
+          const push = (overlapY / 2 + 0.5) * (dy < 0 ? -1 : 1);
+          if (!a.pinned) a.y -= push;
+          if (!b.pinned) b.y += push;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+}
+
+/** 整列レイアウト。ハイパーノードごとに区画を作り、その中へ格子状に並べる。
+ *  構成上ノードが重ならないので、100件規模でも一つずつ読める。 */
+function runGridLayout(graph) {
+  const CELL_W = NODE_W + 26;
+  const CELL_H = NODE_H + 24;
+  const PAD = 26;
+  const TITLE_H = 26;
+  // 区画の枠（padding 22 前後＋見出し）が隣とぶつからない程度に空ける。
+  const BLOCK_GAP = 68;
+  const TARGET_WIDTH = 1680;
+
+  const visible = new Set(graph.nodes.map((node) => node.id));
+  const assigned = new Set();
+  const blocks = [];
+
+  // 直接ノードを含むハイパーノードだけを区画にする（入れ子の親は区画にしない）。
+  for (const hyper of graph.containers) {
+    const members = doc.descendants(hyper.id).filter(
+      (id) => visible.has(id) && !assigned.has(id));
+    if (!members.length) continue;
+    members.forEach((id) => assigned.add(id));
+    blocks.push({ id: hyper.id, members });
+  }
+  const rest = graph.nodes.filter((node) => !assigned.has(node.id)).map((node) => node.id);
+  if (rest.length) blocks.push({ id: null, members: rest });
+
+  let cursorX = 0;
+  let cursorY = 0;
+  let rowHeight = 0;
+  for (const block of blocks) {
+    const columns = Math.max(1, Math.min(5, Math.ceil(Math.sqrt(block.members.length * 0.7))));
+    const rows = Math.ceil(block.members.length / columns);
+    const width = columns * CELL_W + PAD * 2;
+    const height = rows * CELL_H + PAD * 2 + TITLE_H;
+
+    if (cursorX > 0 && cursorX + width > TARGET_WIDTH) {
+      cursorX = 0;
+      cursorY += rowHeight + BLOCK_GAP;
+      rowHeight = 0;
+    }
+    block.members.forEach((id, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      positions.set(id, {
+        x: cursorX + PAD + column * CELL_W + CELL_W / 2,
+        y: cursorY + PAD + TITLE_H + row * CELL_H + CELL_H / 2,
+        pinned: false,
+      });
+    });
+    cursorX += width + BLOCK_GAP;
+    rowHeight = Math.max(rowHeight, height);
+  }
 }
 
 // --- SVG 描画 ---------------------------------------------------------------
@@ -2400,6 +2665,21 @@ function render() {
 
   const pos = (id) => positions.get(id) || { x: 0, y: 0 };
 
+  // 選択したノードに関係する範囲だけを濃く描く。100件規模だと、これが無いと
+  // どの線がどこへ向かっているのか追えない。
+  const focusing = $("#focus-mode").checked && selection && selection.type !== "edge";
+  const focus = new Set();
+  if (focusing) {
+    focus.add(selection.id);
+    for (const edge of graph.edges) {
+      if (edge.source === selection.id) focus.add(edge.target);
+      if (edge.target === selection.id) focus.add(edge.source);
+    }
+  }
+  const inFocus = (id) => !focusing || focus.has(id);
+  const edgeInFocus = (edge) => !focusing || (focus.has(edge.source) && focus.has(edge.target)
+    && (edge.source === selection.id || edge.target === selection.id));
+
   // ハイパーノードの枠（大きいものから描いて入れ子に見せる）
   const boxes = [];
   for (const hyper of [...graph.containers, ...graph.rationale]) {
@@ -2451,7 +2731,11 @@ function render() {
     const to = pos(edge.target);
     const style = EDGE_STYLE[edge.kind] || EDGE_STYLE.uses;
     const clipped = clipToBox(from, to);
-    const group = el("g", { class: "graph-edge", "data-id": edge.id });
+    const selectedEdge = selection && selection.type === "edge" && selection.id === edge.id;
+    const group = el("g", {
+      class: "graph-edge" + (edgeInFocus(edge) || selectedEdge ? "" : " dimmed"),
+      "data-id": edge.id,
+    });
     const line = el("line", {
       x1: clipped.x1, y1: clipped.y1, x2: clipped.x2, y2: clipped.y2,
       stroke: style.color, "stroke-width": style.width,
@@ -2467,15 +2751,17 @@ function render() {
     hit.style.cursor = "pointer";
     hit.addEventListener("click", (event) => { event.stopPropagation(); select("edge", edge.id); });
     group.appendChild(hit);
-    if (edge.label && !edge.meta) {
+    // ラベルは常時出すと線の数だけ字が重なる。関係する分だけ出す。
+    // 固有の補足があればそれを、無ければ関係の種類の名前を出す。
+    const kindOfEdge = doc.edgeKind(edge.kind);
+    const labelText = edge.label || (kindOfEdge ? kindOfEdge.label : edge.kind);
+    if (!edge.meta && labelText && (selectedEdge || (focusing && edgeInFocus(edge)))) {
       group.appendChild(el("text", {
         x: (clipped.x1 + clipped.x2) / 2, y: (clipped.y1 + clipped.y2) / 2 - 3,
         class: "edge-label", fill: style.color, "text-anchor": "middle",
-      }, edge.label));
+      }, labelText));
     }
-    if (selection && selection.type === "edge" && selection.id === edge.id) {
-      line.setAttribute("stroke-width", style.width + 2);
-    }
+    if (selectedEdge) line.setAttribute("stroke-width", style.width + 2);
     layerEdges.appendChild(group);
   }
 
@@ -2488,7 +2774,8 @@ function render() {
       : colorOf(item);
     const selected = selection && selection.id === item.id;
     const group = el("g", {
-      class: "graph-node" + (selected ? " selected" : "") + (matches(item) ? "" : " dimmed"),
+      class: "graph-node" + (selected ? " selected" : "")
+        + (matches(item) && inFocus(item.id) ? "" : " dimmed"),
       transform: `translate(${point.x}, ${point.y})`,
       "data-id": item.id,
     });
@@ -2679,19 +2966,18 @@ function renderLegend() {
     ["ルール種別", PALETTE["rule-type"]],
     ["🛈 メタ知識（rationale）", HYPER_COLOR.rationale],
   ];
-  const edgeItems = [
-    ["uses（採用した用語）", EDGE_STYLE.uses, false],
-    ["alternative（他語彙の対応）", EDGE_STYLE.alternative, true],
-    ["close-match（同一視しない）", EDGE_STYLE["close-match"], true],
-    ["derived-from（導出）", EDGE_STYLE["derived-from"], true],
-    ["constrains / sets / reads", EDGE_STYLE.constrains, false],
-  ];
+  // 関係の種類は文書の edge_kinds がそのまま凡例になる。説明は title に入れる。
+  const edgeItems = doc.edgeKinds.map((kind) => {
+    const style = EDGE_STYLE[kind.id] || EDGE_STYLE.uses;
+    return `<span class="item" title="${esc(kind.description)}">`
+      + `<span class="${style.dash ? "dash" : "solid"}" style="border-color:${style.color}"></span>`
+      + `${esc(kind.label)}<span class="muted" style="margin-left:4px">${esc(kind.id)}</span></span>`;
+  });
   $("#legend").innerHTML = [
     ...nodeItems.map(([label, color]) =>
       `<span class="item"><span class="swatch" style="background:${color}33;border-color:${color}"></span>${esc(label)}</span>`),
-    '<span class="item" style="margin-top:4px"></span>',
-    ...edgeItems.map(([label, style, dashed]) =>
-      `<span class="item"><span class="${dashed ? "dash" : "solid"}" style="border-color:${style.color}"></span>${esc(label)}</span>`),
+    '<div class="muted" style="margin:8px 0 2px">関係の種類（マウスを重ねると説明）</div>',
+    ...edgeItems,
   ].join("");
 }
 
@@ -2765,36 +3051,66 @@ function renderInspector() {
     <ul class="relations">${related.slice(0, 14).map((edge) => {
       const other = edge.source === item.id ? edge.target : edge.source;
       const arrow = edge.source === item.id ? "→" : "←";
-      return `<li><span class="tag">${esc(edge.kind)}</span> ${arrow}
+      const kindOfEdge = doc.edgeKind(edge.kind);
+      return `<li title="${esc(doc.describeEdge(edge))}">`
+        + `<span class="tag">${esc(kindOfEdge ? kindOfEdge.label : edge.kind)}</span> ${arrow}
         <span class="chip" data-goto="${esc(other)}">${esc((doc.byId(other) || {}).label || other)}</span>
         ${edge.derived ? '<span class="muted">🔒導出</span>' : ""}</li>`;
     }).join("")}</ul></div>`;
 
   html += `<div class="actions">
       <button class="primary" data-action="apply">変更を保存</button>
-      ${isHyper ? '<button data-action="edit-members">メンバーを編集</button>' : ""}
+      ${isHyper ? `<button data-action="edit-members">${
+        item.kind === "rationale" ? "対象を選び直す" : "メンバーを選び直す"}</button>` : ""}
       <button class="danger" data-action="delete">削除</button>
     </div>`;
   panel.innerHTML = html;
   bindInspector(item, isHyper);
 }
 
+/** 端点に選べるもの（ノードとハイパーノード）を種類別にまとめた <option> 群。 */
+function endpointOptions(selectedId) {
+  const groups = [
+    ["概念", doc.nodes.filter((node) => node.kind === "concept")],
+    ["語彙の用語", doc.nodes.filter((node) => node.kind === "term")],
+    ["ルール種別", doc.nodes.filter((node) => node.kind === "rule-type")],
+    ["語彙", doc.nodes.filter((node) => node.kind === "vocabulary")],
+    ["ハイパーノード", doc.hypernodes],
+  ];
+  return groups.filter(([, items]) => items.length).map(([label, items]) =>
+    `<optgroup label="${esc(label)}">` + items.map((item) =>
+      `<option value="${esc(item.id)}"${item.id === selectedId ? " selected" : ""}>`
+      + `${esc(item.label)}${item.curie ? `（${esc(item.curie)}）` : ""}</option>`).join("")
+    + "</optgroup>").join("");
+}
+
 function renderEdgeInspector(panel) {
   const edge = doc.allEdges().find((item) => item.id === selection.id);
   if (!edge) return select(null);
   const label = (id) => esc((doc.byId(id) || {}).label || id);
+  const kind = doc.edgeKind(edge.kind);
   panel.innerHTML = `
-    <p style="margin:0 0 6px"><span class="tag">edge</span> <span class="tag">${esc(edge.kind)}</span>
+    <p style="margin:0 0 6px"><span class="tag">edge</span>
+      <span class="tag">${esc(kind ? kind.label : edge.kind)}</span>
+      <code style="font-size:.72rem">${esc(edge.kind)}</code>
       ${edge.derived ? '<span class="tag">🔒 導出</span>' : ""}</p>
+    <p style="margin:0 0 8px;font-weight:600;line-height:1.5">${esc(doc.describeEdge(edge))}</p>
+    ${kind ? `<p class="muted" style="margin:0 0 10px">${esc(kind.description)}</p>` : ""}
     <p style="margin:0 0 10px">
       <span class="chip" data-goto="${esc(edge.source)}">${label(edge.source)}</span>
       　→　<span class="chip" data-goto="${esc(edge.target)}">${label(edge.target)}</span></p>
     ${edge.derived
       ? '<p class="muted">このエッジは rule_terms / evaluated_terms / close_match から自動生成されています。'
-        + '元のノードの属性を編集してください。</p>'
-      : `<div class="field"><label>種別</label><select data-key="kind">${
-          EDGE_KINDS.map((kind) => `<option${kind === edge.kind ? " selected" : ""}>${kind}</option>`).join("")
-        }</select></div>${field("ラベル", "label", edge.label)}
+        + '付け替えるには、元のノードの属性を編集してください。</p>'
+      : `<div class="field"><label>始点</label>
+           <select data-key="source">${endpointOptions(edge.source)}</select></div>
+         <div class="field"><label>終点</label>
+           <select data-key="target">${endpointOptions(edge.target)}</select></div>
+         <div class="field"><label>関係の種類</label><select data-key="kind">${
+          doc.edgeKinds.map((item) =>
+            `<option value="${esc(item.id)}"${item.id === edge.kind ? " selected" : ""}>`
+            + `${esc(item.label)}（${esc(item.id)}）</option>`).join("")
+        }</select></div>${field("このエッジ固有の補足（任意）", "label", edge.label)}
         <div class="actions">
           <button class="primary" data-action="apply-edge">変更を保存</button>
           <button class="danger" data-action="delete-edge">削除</button>
@@ -2805,9 +3121,20 @@ function renderEdgeInspector(panel) {
     apply.addEventListener("click", () => {
       const target = doc.edges.find((item) => item.id === edge.id);
       if (!target) return;
+      const source = panel.querySelector('[data-key="source"]').value;
+      const destination = panel.querySelector('[data-key="target"]').value;
+      if (source === destination) {
+        alert("始点と終点を同じノードにはできません。");
+        return;
+      }
+      target.source = source;
+      target.target = destination;
       target.kind = panel.querySelector('[data-key="kind"]').value;
       const labelValue = panel.querySelector('[data-key="label"]').value.trim();
       if (labelValue) target.label = labelValue; else delete target.label;
+      // id は端点と種類から作っているので、付け替えたら振り直す。
+      target.id = `edge/${target.kind}/${target.source}->${target.target}`;
+      selection = { type: "edge", id: target.id };
       commit("エッジを更新しました。");
     });
   }
@@ -2846,17 +3173,7 @@ function bindInspector(item, isHyper) {
   });
 
   const editMembers = panel.querySelector('[data-action="edit-members"]');
-  if (editMembers) {
-    editMembers.addEventListener("click", () => {
-      const current = (item.members || []).join("\n");
-      const next = prompt(
-        "メンバーのIDを1行に1つ書いてください。\n利用できるID例：" + doc.all.slice(0, 3).map((n) => n.id).join(", "),
-        current);
-      if (next === null) return;
-      item.members = next.split("\n").map((line) => line.trim()).filter(Boolean);
-      commit("メンバーを更新しました。");
-    });
-  }
+  if (editMembers) editMembers.addEventListener("click", () => openMembersForm(item));
 
   panel.querySelector('[data-action="delete"]').addEventListener("click", () => {
     const referencing = doc.allEdges().filter((edge) => edge.source === item.id || edge.target === item.id);
@@ -2900,54 +3217,165 @@ function uniqueId(base) {
   return candidate;
 }
 
-function addNode() {
-  const kind = prompt(`ノードの種類を選んでください：${NODE_KINDS.join(" / ")}`, "concept");
-  if (!kind || !NODE_KINDS.includes(kind)) return;
-  const label = prompt("ラベル（日本語名）", "新しい概念");
-  if (!label) return;
-  const node = { id: uniqueId(`${kind}/new`), kind, label };
-  if (kind === "term") {
-    const curie = prompt("CURIE（例：schema:Course）", "urd:newTerm");
-    if (!curie) return;
-    node.curie = curie;
-    node.term_kind = prompt("class か property か", "property") === "class" ? "class" : "property";
-    node.comment = "";
+const NODE_KIND_LABELS = {
+  concept: "概念（concept）", term: "語彙の用語（term）",
+  "rule-type": "ルール種別（rule-type）", vocabulary: "語彙そのもの（vocabulary）",
+};
+const HYPERNODE_KIND_LABELS = {
+  layer: "語彙レイヤ（layer）", domain: "業務領域（domain）",
+  "rule-group": "ルールのまとまり（rule-group）", rationale: "メタ知識（rationale）",
+};
+const ADD_TITLES = { node: "ノードを追加", edge: "エッジを追加", hypernode: "ハイパーノードを追加" };
+
+const options = (values, labels, selected) => values.map((value) =>
+  `<option value="${esc(value)}"${value === selected ? " selected" : ""}>`
+  + `${esc(labels ? labels[value] : value)}</option>`).join("");
+
+/** 追加はインスペクタ内のフォームで行う。prompt の連打だと入力を間違えやすいため。 */
+function openAddForm(type) {
+  const previous = selection && doc.byId(selection.id) ? selection.id : null;
+  selection = null;
+  const panel = $("#inspector");
+  const rows = [`<p style="margin:0 0 10px"><b>${esc(ADD_TITLES[type])}</b></p>`];
+
+  if (type === "node") {
+    rows.push(`<div class="field"><label>種類</label>
+      <select id="add-kind">${options(NODE_KINDS, NODE_KIND_LABELS, "concept")}</select></div>`);
+    rows.push('<div class="field"><label>ラベル（日本語名）</label><input id="add-label"></div>');
+    rows.push('<div id="add-extra"></div>');
+  } else if (type === "edge") {
+    rows.push(`<div class="field"><label>始点</label>
+      <select id="add-source">${endpointOptions(previous)}</select></div>`);
+    rows.push(`<div class="field"><label>終点</label>
+      <select id="add-target">${endpointOptions(null)}</select></div>`);
+    rows.push(`<div class="field"><label>関係の種類</label><select id="add-kind">${
+      doc.edgeKinds.map((item) =>
+        `<option value="${esc(item.id)}"${item.id === "uses" ? " selected" : ""}>`
+        + `${esc(item.label)}（${esc(item.id)}）</option>`).join("")}</select></div>`);
+    rows.push('<div id="add-extra" class="muted" style="margin:-4px 0 8px"></div>');
+    rows.push('<div class="field"><label>このエッジ固有の補足（任意）</label><input id="add-label"></div>');
+  } else {
+    rows.push(`<div class="field"><label>種類</label>
+      <select id="add-kind">${options(HYPERNODE_KINDS, HYPERNODE_KIND_LABELS, "domain")}</select></div>`);
+    rows.push('<div class="field"><label>ラベル</label><input id="add-label"></div>');
+    rows.push('<div id="add-extra"></div>');
+    rows.push(`<div class="field"><label>メンバー（Ctrl / ⌘ で複数選択）</label>
+      <select id="add-members" multiple size="9">${endpointOptions(previous)}</select></div>`);
   }
-  doc.nodes.push(node);
-  selection = { type: "node", id: node.id };
-  commit("ノードを追加しました。");
+
+  rows.push('<div class="actions"><button class="primary" id="add-submit">作成</button>'
+    + '<button id="add-cancel">やめる</button></div>');
+  panel.innerHTML = rows.join("");
+
+  const extra = () => {
+    const box = $("#add-extra");
+    if (!box) return;
+    const kind = $("#add-kind").value;
+    if (type === "node" && kind === "term") {
+      box.innerHTML = '<div class="field"><label>CURIE（例：urd:newTerm）</label>'
+        + '<input id="add-curie" value="urd:"></div>'
+        + '<div class="field"><label>クラスか属性か</label><select id="add-term-kind">'
+        + '<option value="property">属性（property）</option>'
+        + '<option value="class">クラス（class）</option></select></div>'
+        + '<div class="field"><label>説明</label><textarea id="add-comment" rows="3"></textarea></div>';
+    } else if (type === "edge") {
+      const declared = doc.edgeKind(kind);
+      box.textContent = declared ? declared.description : "";
+    } else if (type === "hypernode" && kind === "rationale") {
+      box.innerHTML = '<div class="field"><label>言明（この集合について言いたいこと）</label>'
+        + '<textarea id="add-statement" rows="4"></textarea></div>'
+        + '<div class="field"><label>根拠（任意）</label><textarea id="add-evidence" rows="2"></textarea></div>';
+    } else {
+      box.innerHTML = "";
+    }
+  };
+  $("#add-kind").addEventListener("change", extra);
+  extra();
+
+  $("#add-cancel").addEventListener("click", () => { renderInspector(); });
+  $("#add-submit").addEventListener("click", () => submitAddForm(type));
+  $("#add-label").focus();
 }
 
-function addHypernode() {
-  const kind = prompt(`ハイパーノードの種類：${HYPERNODE_KINDS.join(" / ")}`, "domain");
-  if (!kind || !HYPERNODE_KINDS.includes(kind)) return;
-  const label = prompt("ラベル", kind === "rationale" ? "新しいメタ知識" : "新しいまとまり");
-  if (!label) return;
-  const hyper = { id: uniqueId(`${kind}/new`), kind, label, members: [] };
-  if (kind === "rationale") {
-    hyper.statement = prompt("この集合について言いたいこと（statement）", "") || "（未記入）";
-    hyper.about = [];
+function submitAddForm(type) {
+  const kind = $("#add-kind").value;
+  const labelInput = $("#add-label");
+  const label = labelInput ? labelInput.value.trim() : "";
+
+  if (type === "edge") {
+    const source = $("#add-source").value;
+    const target = $("#add-target").value;
+    if (source === target) { alert("始点と終点を同じノードにはできません。"); return; }
+    if (doc.edges.some((edge) => edge.source === source && edge.target === target && edge.kind === kind)) {
+      alert("同じ関係が既にあります。");
+      return;
+    }
+    const edge = { id: `edge/${kind}/${source}->${target}`, source, target, kind };
+    if (label) edge.label = label;
+    doc.edges.push(edge);
+    selection = { type: "edge", id: edge.id };
+    commit("エッジを追加しました。");
+    return;
   }
-  if (selection && doc.byId(selection.id) && kind !== "rationale") hyper.members.push(selection.id);
+
+  if (!label) { alert("ラベルを入力してください。"); return; }
+
+  if (type === "node") {
+    const node = { id: uniqueId(`${kind}/new`), kind, label };
+    if (kind === "term") {
+      const curie = $("#add-curie").value.trim();
+      if (!/^[a-z]+:[A-Za-z0-9_-]+$/.test(curie)) {
+        alert("CURIE は 接頭辞:用語名 の形で入力してください（例：urd:newTerm）。");
+        return;
+      }
+      if (doc.termByCurie(curie)) { alert(`その CURIE は既にあります: ${curie}`); return; }
+      node.curie = curie;
+      node.term_kind = $("#add-term-kind").value;
+      const comment = $("#add-comment").value.trim();
+      if (comment) node.comment = comment;
+      node.id = uniqueId(`term/${curie}`);
+    }
+    doc.nodes.push(node);
+    selection = { type: "node", id: node.id };
+    commit("ノードを追加しました。");
+    return;
+  }
+
+  const hyper = { id: uniqueId(`${kind}/new`), kind, label, members: [] };
+  hyper.members = [...$("#add-members").selectedOptions].map((option) => option.value);
+  if (kind === "rationale") {
+    hyper.statement = $("#add-statement").value.trim() || "（未記入）";
+    const evidence = $("#add-evidence").value.trim();
+    if (evidence) hyper.evidence = evidence;
+    hyper.about = hyper.members;
+    hyper.members = [];
+  }
   doc.hypernodes.push(hyper);
   selection = { type: "hypernode", id: hyper.id };
   commit("ハイパーノードを追加しました。");
 }
 
-function addEdge() {
-  if (!selection || !doc.byId(selection.id)) {
-    alert("先に始点となるノードを選択してください。");
-    return;
-  }
-  const source = selection.id;
-  const target = prompt(
-    `終点のIDを入力してください。\n始点：${source}\n\n例：${doc.nodes.slice(0, 2).map((n) => n.id).join(" / ")}`, "");
-  if (!target) return;
-  if (!doc.byId(target)) { alert(`そのIDのノードがありません: ${target}`); return; }
-  const kind = prompt(`関係の種類：${EDGE_KINDS.join(" / ")}`, "uses");
-  if (!kind || !EDGE_KINDS.includes(kind)) return;
-  doc.edges.push({ id: `edge/${kind}/${source}->${target}`, source, target, kind });
-  commit("エッジを追加しました。");
+/** メンバーの付け替えも一覧から選ばせる。 */
+function openMembersForm(hyper) {
+  const key = hyper.kind === "rationale" ? "about" : "members";
+  const current = hyper[key] || [];
+  const panel = $("#inspector");
+  panel.innerHTML = `<p style="margin:0 0 10px"><b>${esc(hyper.label)}</b> の`
+    + `${key === "about" ? "対象（about）" : "メンバー"}を選ぶ</p>`
+    + `<div class="field"><select id="member-list" multiple size="14">`
+    + endpointOptions(null).replace(/<option value="([^"]+)"/g,
+      (match, id) => `<option value="${id}"${current.includes(id) ? " selected" : ""}`)
+    + `</select></div>`
+    + '<p class="muted">Ctrl / ⌘ を押しながらクリックで複数選択・選択解除できます。</p>'
+    + '<div class="actions"><button class="primary" id="member-save">保存</button>'
+    + '<button id="member-cancel">やめる</button></div>';
+  $("#member-cancel").addEventListener("click", renderInspector);
+  $("#member-save").addEventListener("click", () => {
+    hyper[key] = [...$("#member-list").selectedOptions].map((option) => option.value)
+      .filter((id) => id !== hyper.id);
+    selection = { type: "hypernode", id: hyper.id };
+    commit(key === "about" ? "対象を更新しました。" : "メンバーを更新しました。");
+  });
 }
 
 // --- 書き出し ---------------------------------------------------------------
@@ -3011,12 +3439,22 @@ function exportJson() {
 
 // --- 起動 -------------------------------------------------------------------
 
+const layoutMode = () => $("#layout").value;
+
 function refresh({ relayout }) {
   const graph = visibleGraph();
-  if (relayout) {
-    positions = new Map([...positions].filter(([, value]) => value.pinned));
-    runLayout(graph);
-  } else if (graph.nodes.some((node) => !positions.has(node.id))) {
+  const grid = layoutMode() === "grid";
+  const missing = graph.nodes.some((node) => !positions.has(node.id));
+  if (relayout || (missing && grid)) {
+    // 整列は全体をやり直す。途中から足すと格子が崩れるため。
+    if (grid) {
+      positions = new Map();
+      runGridLayout(graph);
+    } else {
+      positions = new Map([...positions].filter(([, value]) => value.pinned));
+      runLayout(graph);
+    }
+  } else if (missing) {
     // 新しく増えたノードだけ座標が無い。短めに回して既存の配置を大きく崩さない。
     runLayout(graph, 90);
   }
@@ -3037,7 +3475,9 @@ $("#search").addEventListener("input", (event) => {
   searchText = event.target.value.trim().toLowerCase();
   render();
 });
-$("#grouping").addEventListener("change", () => refresh({ relayout: true }));
+$("#layout").addEventListener("change", () => { refresh({ relayout: true }); fitToScreen(); });
+$("#grouping").addEventListener("change", () => { refresh({ relayout: true }); fitToScreen(); });
+$("#focus-mode").addEventListener("change", render);
 $("#show-derived").addEventListener("change", () => refresh({ relayout: false }));
 $("#show-rationale").addEventListener("change", () => refresh({ relayout: true }));
 $("#relayout").addEventListener("click", () => {
@@ -3046,9 +3486,9 @@ $("#relayout").addEventListener("click", () => {
   fitToScreen();
 });
 $("#fit").addEventListener("click", fitToScreen);
-$("#add-node").addEventListener("click", addNode);
-$("#add-edge").addEventListener("click", addEdge);
-$("#add-hyper").addEventListener("click", addHypernode);
+$("#add-node").addEventListener("click", () => openAddForm("node"));
+$("#add-edge").addEventListener("click", () => openAddForm("edge"));
+$("#add-hyper").addEventListener("click", () => openAddForm("hypernode"));
 $("#export-yaml").addEventListener("click", exportYaml);
 $("#export-json").addEventListener("click", exportJson);
 $("#reset").addEventListener("click", () => {

@@ -143,6 +143,15 @@ def test_graph_page_derives_the_same_edges(graph_results):
     assert graph_results["derived_edge_ids"] == sorted(e.id for e in GRAPH.derived_edges)
 
 
+def test_graph_page_reads_edges_the_same_way(graph_results):
+    """エッジの意味の文が、画面と Python で一字一句一致すること。"""
+    from src.ontology import GRAPH
+
+    assert graph_results["edge_kinds"] == [k.model_dump() for k in GRAPH.edge_kinds]
+    expected = {edge.id: GRAPH.describe_edge(edge) for edge in GRAPH.edges}
+    assert graph_results["readings"] == expected
+
+
 def test_graph_page_derives_the_same_crosswalk(graph_results):
     from src.ontology import GRAPH
 
