@@ -26,12 +26,17 @@
 
   <div class="toolbar">
     <input id="search" type="search" placeholder="ノードを検索（ラベル・CURIE）" size="26">
+    <select id="layout" title="配置">
+      <option value="grid">整列（重ならない）</option>
+      <option value="force">力学</option>
+    </select>
     <select id="grouping" title="ハイパーノードの表示">
       <option value="layer">語彙レイヤで囲む</option>
       <option value="domain">業務領域で囲む</option>
       <option value="rule-group">ルール種別で囲む</option>
       <option value="none">囲まない</option>
     </select>
+    <label class="tag"><input type="checkbox" id="focus-mode" checked> 選択に関係する分だけ強調</label>
     <label class="tag"><input type="checkbox" id="show-derived" checked> 導出エッジ</label>
     <label class="tag"><input type="checkbox" id="show-rationale" checked> メタ知識</label>
     <span class="spacer"></span>
@@ -91,7 +96,7 @@
       <header>グラフ<span class="muted" id="graph-stats" style="font-weight:400"></span></header>
       <div class="body">
         <svg id="graph-canvas" role="img" aria-label="オントロジーの構造グラフ"></svg>
-        <div class="canvas-hint">ドラッグで移動／ホイールで拡大縮小／ノードをドラッグで固定／ハイパーノードをダブルクリックで折りたたみ</div>
+        <div class="canvas-hint">ノードをクリックすると関係する分だけ強調／ドラッグで移動／ホイールで拡大縮小／ハイパーノードをダブルクリックで折りたたみ</div>
       </div>
     </section>
 
@@ -2270,9 +2275,11 @@ function visibleGraph() {
 // --- 力学レイアウト ---------------------------------------------------------
 
 function runLayout(graph, iterations = 260) {
-  const width = 900;
-  const height = 620;
   const nodes = graph.nodes;
+  // ノード数に応じて面積を広げる。固定サイズだと件数が増えるほど潰れて読めなくなる。
+  const span = Math.sqrt(Math.max(nodes.length, 1)) * 150;
+  const width = Math.max(900, span);
+  const height = Math.max(620, span * 0.7);
   const index = new Map(nodes.map((node, i) => [node.id, i]));
 
   const state = nodes.map((node, i) => {
@@ -2342,7 +2349,94 @@ function runLayout(graph, iterations = 260) {
     }
   }
 
+  separate(state);
   for (const item of state) positions.set(item.id, { x: item.x, y: item.y, pinned: item.pinned });
+}
+
+/** 矩形として重なっているノードを押し離す。力学だけでは必ず重なるため。 */
+function separate(state, passes = 80) {
+  const gapX = NODE_W + 26;
+  const gapY = NODE_H + 20;
+  for (let pass = 0; pass < passes; pass += 1) {
+    let moved = false;
+    for (let i = 0; i < state.length; i += 1) {
+      for (let j = i + 1; j < state.length; j += 1) {
+        const a = state[i];
+        const b = state[j];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const overlapX = gapX - Math.abs(dx);
+        const overlapY = gapY - Math.abs(dy);
+        if (overlapX <= 0 || overlapY <= 0) continue;
+        moved = true;
+        // 食い込みが浅い軸へ逃がすと、並びが崩れにくい。
+        if (overlapX / gapX < overlapY / gapY) {
+          const push = (overlapX / 2 + 0.5) * (dx < 0 ? -1 : 1);
+          if (!a.pinned) a.x -= push;
+          if (!b.pinned) b.x += push;
+        } else {
+          const push = (overlapY / 2 + 0.5) * (dy < 0 ? -1 : 1);
+          if (!a.pinned) a.y -= push;
+          if (!b.pinned) b.y += push;
+        }
+      }
+    }
+    if (!moved) break;
+  }
+}
+
+/** 整列レイアウト。ハイパーノードごとに区画を作り、その中へ格子状に並べる。
+ *  構成上ノードが重ならないので、100件規模でも一つずつ読める。 */
+function runGridLayout(graph) {
+  const CELL_W = NODE_W + 26;
+  const CELL_H = NODE_H + 24;
+  const PAD = 26;
+  const TITLE_H = 26;
+  // 区画の枠（padding 22 前後＋見出し）が隣とぶつからない程度に空ける。
+  const BLOCK_GAP = 68;
+  const TARGET_WIDTH = 1680;
+
+  const visible = new Set(graph.nodes.map((node) => node.id));
+  const assigned = new Set();
+  const blocks = [];
+
+  // 直接ノードを含むハイパーノードだけを区画にする（入れ子の親は区画にしない）。
+  for (const hyper of graph.containers) {
+    const members = doc.descendants(hyper.id).filter(
+      (id) => visible.has(id) && !assigned.has(id));
+    if (!members.length) continue;
+    members.forEach((id) => assigned.add(id));
+    blocks.push({ id: hyper.id, members });
+  }
+  const rest = graph.nodes.filter((node) => !assigned.has(node.id)).map((node) => node.id);
+  if (rest.length) blocks.push({ id: null, members: rest });
+
+  let cursorX = 0;
+  let cursorY = 0;
+  let rowHeight = 0;
+  for (const block of blocks) {
+    const columns = Math.max(1, Math.min(5, Math.ceil(Math.sqrt(block.members.length * 0.7))));
+    const rows = Math.ceil(block.members.length / columns);
+    const width = columns * CELL_W + PAD * 2;
+    const height = rows * CELL_H + PAD * 2 + TITLE_H;
+
+    if (cursorX > 0 && cursorX + width > TARGET_WIDTH) {
+      cursorX = 0;
+      cursorY += rowHeight + BLOCK_GAP;
+      rowHeight = 0;
+    }
+    block.members.forEach((id, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      positions.set(id, {
+        x: cursorX + PAD + column * CELL_W + CELL_W / 2,
+        y: cursorY + PAD + TITLE_H + row * CELL_H + CELL_H / 2,
+        pinned: false,
+      });
+    });
+    cursorX += width + BLOCK_GAP;
+    rowHeight = Math.max(rowHeight, height);
+  }
 }
 
 // --- SVG 描画 ---------------------------------------------------------------
@@ -2400,6 +2494,21 @@ function render() {
 
   const pos = (id) => positions.get(id) || { x: 0, y: 0 };
 
+  // 選択したノードに関係する範囲だけを濃く描く。100件規模だと、これが無いと
+  // どの線がどこへ向かっているのか追えない。
+  const focusing = $("#focus-mode").checked && selection && selection.type !== "edge";
+  const focus = new Set();
+  if (focusing) {
+    focus.add(selection.id);
+    for (const edge of graph.edges) {
+      if (edge.source === selection.id) focus.add(edge.target);
+      if (edge.target === selection.id) focus.add(edge.source);
+    }
+  }
+  const inFocus = (id) => !focusing || focus.has(id);
+  const edgeInFocus = (edge) => !focusing || (focus.has(edge.source) && focus.has(edge.target)
+    && (edge.source === selection.id || edge.target === selection.id));
+
   // ハイパーノードの枠（大きいものから描いて入れ子に見せる）
   const boxes = [];
   for (const hyper of [...graph.containers, ...graph.rationale]) {
@@ -2451,7 +2560,11 @@ function render() {
     const to = pos(edge.target);
     const style = EDGE_STYLE[edge.kind] || EDGE_STYLE.uses;
     const clipped = clipToBox(from, to);
-    const group = el("g", { class: "graph-edge", "data-id": edge.id });
+    const selectedEdge = selection && selection.type === "edge" && selection.id === edge.id;
+    const group = el("g", {
+      class: "graph-edge" + (edgeInFocus(edge) || selectedEdge ? "" : " dimmed"),
+      "data-id": edge.id,
+    });
     const line = el("line", {
       x1: clipped.x1, y1: clipped.y1, x2: clipped.x2, y2: clipped.y2,
       stroke: style.color, "stroke-width": style.width,
@@ -2467,15 +2580,15 @@ function render() {
     hit.style.cursor = "pointer";
     hit.addEventListener("click", (event) => { event.stopPropagation(); select("edge", edge.id); });
     group.appendChild(hit);
-    if (edge.label && !edge.meta) {
+    // ラベルは常時出すと線の数だけ字が重なる。関係する分だけ出す。
+    const showLabel = edge.label && !edge.meta && (selectedEdge || edgeInFocus(edge) && focusing);
+    if (showLabel) {
       group.appendChild(el("text", {
         x: (clipped.x1 + clipped.x2) / 2, y: (clipped.y1 + clipped.y2) / 2 - 3,
         class: "edge-label", fill: style.color, "text-anchor": "middle",
       }, edge.label));
     }
-    if (selection && selection.type === "edge" && selection.id === edge.id) {
-      line.setAttribute("stroke-width", style.width + 2);
-    }
+    if (selectedEdge) line.setAttribute("stroke-width", style.width + 2);
     layerEdges.appendChild(group);
   }
 
@@ -2488,7 +2601,8 @@ function render() {
       : colorOf(item);
     const selected = selection && selection.id === item.id;
     const group = el("g", {
-      class: "graph-node" + (selected ? " selected" : "") + (matches(item) ? "" : " dimmed"),
+      class: "graph-node" + (selected ? " selected" : "")
+        + (matches(item) && inFocus(item.id) ? "" : " dimmed"),
       transform: `translate(${point.x}, ${point.y})`,
       "data-id": item.id,
     });
@@ -2772,11 +2886,28 @@ function renderInspector() {
 
   html += `<div class="actions">
       <button class="primary" data-action="apply">変更を保存</button>
-      ${isHyper ? '<button data-action="edit-members">メンバーを編集</button>' : ""}
+      ${isHyper ? `<button data-action="edit-members">${
+        item.kind === "rationale" ? "対象を選び直す" : "メンバーを選び直す"}</button>` : ""}
       <button class="danger" data-action="delete">削除</button>
     </div>`;
   panel.innerHTML = html;
   bindInspector(item, isHyper);
+}
+
+/** 端点に選べるもの（ノードとハイパーノード）を種類別にまとめた <option> 群。 */
+function endpointOptions(selectedId) {
+  const groups = [
+    ["概念", doc.nodes.filter((node) => node.kind === "concept")],
+    ["語彙の用語", doc.nodes.filter((node) => node.kind === "term")],
+    ["ルール種別", doc.nodes.filter((node) => node.kind === "rule-type")],
+    ["語彙", doc.nodes.filter((node) => node.kind === "vocabulary")],
+    ["ハイパーノード", doc.hypernodes],
+  ];
+  return groups.filter(([, items]) => items.length).map(([label, items]) =>
+    `<optgroup label="${esc(label)}">` + items.map((item) =>
+      `<option value="${esc(item.id)}"${item.id === selectedId ? " selected" : ""}>`
+      + `${esc(item.label)}${item.curie ? `（${esc(item.curie)}）` : ""}</option>`).join("")
+    + "</optgroup>").join("");
 }
 
 function renderEdgeInspector(panel) {
@@ -2791,8 +2922,12 @@ function renderEdgeInspector(panel) {
       　→　<span class="chip" data-goto="${esc(edge.target)}">${label(edge.target)}</span></p>
     ${edge.derived
       ? '<p class="muted">このエッジは rule_terms / evaluated_terms / close_match から自動生成されています。'
-        + '元のノードの属性を編集してください。</p>'
-      : `<div class="field"><label>種別</label><select data-key="kind">${
+        + '付け替えるには、元のノードの属性を編集してください。</p>'
+      : `<div class="field"><label>始点</label>
+           <select data-key="source">${endpointOptions(edge.source)}</select></div>
+         <div class="field"><label>終点</label>
+           <select data-key="target">${endpointOptions(edge.target)}</select></div>
+         <div class="field"><label>関係の種類</label><select data-key="kind">${
           EDGE_KINDS.map((kind) => `<option${kind === edge.kind ? " selected" : ""}>${kind}</option>`).join("")
         }</select></div>${field("ラベル", "label", edge.label)}
         <div class="actions">
@@ -2805,9 +2940,20 @@ function renderEdgeInspector(panel) {
     apply.addEventListener("click", () => {
       const target = doc.edges.find((item) => item.id === edge.id);
       if (!target) return;
+      const source = panel.querySelector('[data-key="source"]').value;
+      const destination = panel.querySelector('[data-key="target"]').value;
+      if (source === destination) {
+        alert("始点と終点を同じノードにはできません。");
+        return;
+      }
+      target.source = source;
+      target.target = destination;
       target.kind = panel.querySelector('[data-key="kind"]').value;
       const labelValue = panel.querySelector('[data-key="label"]').value.trim();
       if (labelValue) target.label = labelValue; else delete target.label;
+      // id は端点と種類から作っているので、付け替えたら振り直す。
+      target.id = `edge/${target.kind}/${target.source}->${target.target}`;
+      selection = { type: "edge", id: target.id };
       commit("エッジを更新しました。");
     });
   }
@@ -2846,17 +2992,7 @@ function bindInspector(item, isHyper) {
   });
 
   const editMembers = panel.querySelector('[data-action="edit-members"]');
-  if (editMembers) {
-    editMembers.addEventListener("click", () => {
-      const current = (item.members || []).join("\n");
-      const next = prompt(
-        "メンバーのIDを1行に1つ書いてください。\n利用できるID例：" + doc.all.slice(0, 3).map((n) => n.id).join(", "),
-        current);
-      if (next === null) return;
-      item.members = next.split("\n").map((line) => line.trim()).filter(Boolean);
-      commit("メンバーを更新しました。");
-    });
-  }
+  if (editMembers) editMembers.addEventListener("click", () => openMembersForm(item));
 
   panel.querySelector('[data-action="delete"]').addEventListener("click", () => {
     const referencing = doc.allEdges().filter((edge) => edge.source === item.id || edge.target === item.id);
@@ -2900,54 +3036,159 @@ function uniqueId(base) {
   return candidate;
 }
 
-function addNode() {
-  const kind = prompt(`ノードの種類を選んでください：${NODE_KINDS.join(" / ")}`, "concept");
-  if (!kind || !NODE_KINDS.includes(kind)) return;
-  const label = prompt("ラベル（日本語名）", "新しい概念");
-  if (!label) return;
-  const node = { id: uniqueId(`${kind}/new`), kind, label };
-  if (kind === "term") {
-    const curie = prompt("CURIE（例：schema:Course）", "urd:newTerm");
-    if (!curie) return;
-    node.curie = curie;
-    node.term_kind = prompt("class か property か", "property") === "class" ? "class" : "property";
-    node.comment = "";
+const NODE_KIND_LABELS = {
+  concept: "概念（concept）", term: "語彙の用語（term）",
+  "rule-type": "ルール種別（rule-type）", vocabulary: "語彙そのもの（vocabulary）",
+};
+const HYPERNODE_KIND_LABELS = {
+  layer: "語彙レイヤ（layer）", domain: "業務領域（domain）",
+  "rule-group": "ルールのまとまり（rule-group）", rationale: "メタ知識（rationale）",
+};
+const ADD_TITLES = { node: "ノードを追加", edge: "エッジを追加", hypernode: "ハイパーノードを追加" };
+
+const options = (values, labels, selected) => values.map((value) =>
+  `<option value="${esc(value)}"${value === selected ? " selected" : ""}>`
+  + `${esc(labels ? labels[value] : value)}</option>`).join("");
+
+/** 追加はインスペクタ内のフォームで行う。prompt の連打だと入力を間違えやすいため。 */
+function openAddForm(type) {
+  const previous = selection && doc.byId(selection.id) ? selection.id : null;
+  selection = null;
+  const panel = $("#inspector");
+  const rows = [`<p style="margin:0 0 10px"><b>${esc(ADD_TITLES[type])}</b></p>`];
+
+  if (type === "node") {
+    rows.push(`<div class="field"><label>種類</label>
+      <select id="add-kind">${options(NODE_KINDS, NODE_KIND_LABELS, "concept")}</select></div>`);
+    rows.push('<div class="field"><label>ラベル（日本語名）</label><input id="add-label"></div>');
+    rows.push('<div id="add-extra"></div>');
+  } else if (type === "edge") {
+    rows.push(`<div class="field"><label>始点</label>
+      <select id="add-source">${endpointOptions(previous)}</select></div>`);
+    rows.push(`<div class="field"><label>終点</label>
+      <select id="add-target">${endpointOptions(null)}</select></div>`);
+    rows.push(`<div class="field"><label>関係の種類</label>
+      <select id="add-kind">${options(EDGE_KINDS, null, "uses")}</select></div>`);
+    rows.push('<div class="field"><label>ラベル（任意）</label><input id="add-label"></div>');
+  } else {
+    rows.push(`<div class="field"><label>種類</label>
+      <select id="add-kind">${options(HYPERNODE_KINDS, HYPERNODE_KIND_LABELS, "domain")}</select></div>`);
+    rows.push('<div class="field"><label>ラベル</label><input id="add-label"></div>');
+    rows.push('<div id="add-extra"></div>');
+    rows.push(`<div class="field"><label>メンバー（Ctrl / ⌘ で複数選択）</label>
+      <select id="add-members" multiple size="9">${endpointOptions(previous)}</select></div>`);
   }
-  doc.nodes.push(node);
-  selection = { type: "node", id: node.id };
-  commit("ノードを追加しました。");
+
+  rows.push('<div class="actions"><button class="primary" id="add-submit">作成</button>'
+    + '<button id="add-cancel">やめる</button></div>');
+  panel.innerHTML = rows.join("");
+
+  const extra = () => {
+    const box = $("#add-extra");
+    if (!box) return;
+    const kind = $("#add-kind").value;
+    if (type === "node" && kind === "term") {
+      box.innerHTML = '<div class="field"><label>CURIE（例：urd:newTerm）</label>'
+        + '<input id="add-curie" value="urd:"></div>'
+        + '<div class="field"><label>クラスか属性か</label><select id="add-term-kind">'
+        + '<option value="property">属性（property）</option>'
+        + '<option value="class">クラス（class）</option></select></div>'
+        + '<div class="field"><label>説明</label><textarea id="add-comment" rows="3"></textarea></div>';
+    } else if (type === "hypernode" && kind === "rationale") {
+      box.innerHTML = '<div class="field"><label>言明（この集合について言いたいこと）</label>'
+        + '<textarea id="add-statement" rows="4"></textarea></div>'
+        + '<div class="field"><label>根拠（任意）</label><textarea id="add-evidence" rows="2"></textarea></div>';
+    } else {
+      box.innerHTML = "";
+    }
+  };
+  $("#add-kind").addEventListener("change", extra);
+  extra();
+
+  $("#add-cancel").addEventListener("click", () => { renderInspector(); });
+  $("#add-submit").addEventListener("click", () => submitAddForm(type));
+  $("#add-label").focus();
 }
 
-function addHypernode() {
-  const kind = prompt(`ハイパーノードの種類：${HYPERNODE_KINDS.join(" / ")}`, "domain");
-  if (!kind || !HYPERNODE_KINDS.includes(kind)) return;
-  const label = prompt("ラベル", kind === "rationale" ? "新しいメタ知識" : "新しいまとまり");
-  if (!label) return;
-  const hyper = { id: uniqueId(`${kind}/new`), kind, label, members: [] };
-  if (kind === "rationale") {
-    hyper.statement = prompt("この集合について言いたいこと（statement）", "") || "（未記入）";
-    hyper.about = [];
+function submitAddForm(type) {
+  const kind = $("#add-kind").value;
+  const labelInput = $("#add-label");
+  const label = labelInput ? labelInput.value.trim() : "";
+
+  if (type === "edge") {
+    const source = $("#add-source").value;
+    const target = $("#add-target").value;
+    if (source === target) { alert("始点と終点を同じノードにはできません。"); return; }
+    if (doc.edges.some((edge) => edge.source === source && edge.target === target && edge.kind === kind)) {
+      alert("同じ関係が既にあります。");
+      return;
+    }
+    const edge = { id: `edge/${kind}/${source}->${target}`, source, target, kind };
+    if (label) edge.label = label;
+    doc.edges.push(edge);
+    selection = { type: "edge", id: edge.id };
+    commit("エッジを追加しました。");
+    return;
   }
-  if (selection && doc.byId(selection.id) && kind !== "rationale") hyper.members.push(selection.id);
+
+  if (!label) { alert("ラベルを入力してください。"); return; }
+
+  if (type === "node") {
+    const node = { id: uniqueId(`${kind}/new`), kind, label };
+    if (kind === "term") {
+      const curie = $("#add-curie").value.trim();
+      if (!/^[a-z]+:[A-Za-z0-9_-]+$/.test(curie)) {
+        alert("CURIE は 接頭辞:用語名 の形で入力してください（例：urd:newTerm）。");
+        return;
+      }
+      if (doc.termByCurie(curie)) { alert(`その CURIE は既にあります: ${curie}`); return; }
+      node.curie = curie;
+      node.term_kind = $("#add-term-kind").value;
+      const comment = $("#add-comment").value.trim();
+      if (comment) node.comment = comment;
+      node.id = uniqueId(`term/${curie}`);
+    }
+    doc.nodes.push(node);
+    selection = { type: "node", id: node.id };
+    commit("ノードを追加しました。");
+    return;
+  }
+
+  const hyper = { id: uniqueId(`${kind}/new`), kind, label, members: [] };
+  hyper.members = [...$("#add-members").selectedOptions].map((option) => option.value);
+  if (kind === "rationale") {
+    hyper.statement = $("#add-statement").value.trim() || "（未記入）";
+    const evidence = $("#add-evidence").value.trim();
+    if (evidence) hyper.evidence = evidence;
+    hyper.about = hyper.members;
+    hyper.members = [];
+  }
   doc.hypernodes.push(hyper);
   selection = { type: "hypernode", id: hyper.id };
   commit("ハイパーノードを追加しました。");
 }
 
-function addEdge() {
-  if (!selection || !doc.byId(selection.id)) {
-    alert("先に始点となるノードを選択してください。");
-    return;
-  }
-  const source = selection.id;
-  const target = prompt(
-    `終点のIDを入力してください。\n始点：${source}\n\n例：${doc.nodes.slice(0, 2).map((n) => n.id).join(" / ")}`, "");
-  if (!target) return;
-  if (!doc.byId(target)) { alert(`そのIDのノードがありません: ${target}`); return; }
-  const kind = prompt(`関係の種類：${EDGE_KINDS.join(" / ")}`, "uses");
-  if (!kind || !EDGE_KINDS.includes(kind)) return;
-  doc.edges.push({ id: `edge/${kind}/${source}->${target}`, source, target, kind });
-  commit("エッジを追加しました。");
+/** メンバーの付け替えも一覧から選ばせる。 */
+function openMembersForm(hyper) {
+  const key = hyper.kind === "rationale" ? "about" : "members";
+  const current = hyper[key] || [];
+  const panel = $("#inspector");
+  panel.innerHTML = `<p style="margin:0 0 10px"><b>${esc(hyper.label)}</b> の`
+    + `${key === "about" ? "対象（about）" : "メンバー"}を選ぶ</p>`
+    + `<div class="field"><select id="member-list" multiple size="14">`
+    + endpointOptions(null).replace(/<option value="([^"]+)"/g,
+      (match, id) => `<option value="${id}"${current.includes(id) ? " selected" : ""}`)
+    + `</select></div>`
+    + '<p class="muted">Ctrl / ⌘ を押しながらクリックで複数選択・選択解除できます。</p>'
+    + '<div class="actions"><button class="primary" id="member-save">保存</button>'
+    + '<button id="member-cancel">やめる</button></div>';
+  $("#member-cancel").addEventListener("click", renderInspector);
+  $("#member-save").addEventListener("click", () => {
+    hyper[key] = [...$("#member-list").selectedOptions].map((option) => option.value)
+      .filter((id) => id !== hyper.id);
+    selection = { type: "hypernode", id: hyper.id };
+    commit(key === "about" ? "対象を更新しました。" : "メンバーを更新しました。");
+  });
 }
 
 // --- 書き出し ---------------------------------------------------------------
@@ -3011,12 +3252,22 @@ function exportJson() {
 
 // --- 起動 -------------------------------------------------------------------
 
+const layoutMode = () => $("#layout").value;
+
 function refresh({ relayout }) {
   const graph = visibleGraph();
-  if (relayout) {
-    positions = new Map([...positions].filter(([, value]) => value.pinned));
-    runLayout(graph);
-  } else if (graph.nodes.some((node) => !positions.has(node.id))) {
+  const grid = layoutMode() === "grid";
+  const missing = graph.nodes.some((node) => !positions.has(node.id));
+  if (relayout || (missing && grid)) {
+    // 整列は全体をやり直す。途中から足すと格子が崩れるため。
+    if (grid) {
+      positions = new Map();
+      runGridLayout(graph);
+    } else {
+      positions = new Map([...positions].filter(([, value]) => value.pinned));
+      runLayout(graph);
+    }
+  } else if (missing) {
     // 新しく増えたノードだけ座標が無い。短めに回して既存の配置を大きく崩さない。
     runLayout(graph, 90);
   }
@@ -3037,7 +3288,9 @@ $("#search").addEventListener("input", (event) => {
   searchText = event.target.value.trim().toLowerCase();
   render();
 });
-$("#grouping").addEventListener("change", () => refresh({ relayout: true }));
+$("#layout").addEventListener("change", () => { refresh({ relayout: true }); fitToScreen(); });
+$("#grouping").addEventListener("change", () => { refresh({ relayout: true }); fitToScreen(); });
+$("#focus-mode").addEventListener("change", render);
 $("#show-derived").addEventListener("change", () => refresh({ relayout: false }));
 $("#show-rationale").addEventListener("change", () => refresh({ relayout: true }));
 $("#relayout").addEventListener("click", () => {
@@ -3046,9 +3299,9 @@ $("#relayout").addEventListener("click", () => {
   fitToScreen();
 });
 $("#fit").addEventListener("click", fitToScreen);
-$("#add-node").addEventListener("click", addNode);
-$("#add-edge").addEventListener("click", addEdge);
-$("#add-hyper").addEventListener("click", addHypernode);
+$("#add-node").addEventListener("click", () => openAddForm("node"));
+$("#add-edge").addEventListener("click", () => openAddForm("edge"));
+$("#add-hyper").addEventListener("click", () => openAddForm("hypernode"));
 $("#export-yaml").addEventListener("click", exportYaml);
 $("#export-json").addEventListener("click", exportJson);
 $("#reset").addEventListener("click", () => {

@@ -48,6 +48,8 @@ class El {
   querySelector() { return new El("stub"); }
   querySelectorAll() { return []; }
   select() {}
+  focus() {}
+  get selectedOptions() { return []; }
   getBoundingClientRect() { return { width: 900, height: 620, left: 0, top: 0 }; }
   get textContent() { return this._text; }
   set textContent(value) { this._text = value; this.children = []; }
@@ -71,9 +73,11 @@ for (const id of [
   "tree", "legend", "doc-meta", "graph-canvas", "graph-stats", "inspector", "global-status",
   "export-panel", "export-text", "export-caption", "export-note",
   "export-copy", "export-download", "export-close",
+  "layout", "focus-mode",
 ]) makeElement(id);
 
 byId.get("grouping").value = "layer";
+byId.get("layout").value = "grid";
 
 globalThis.document = {
   getElementById: (id) => {
@@ -150,6 +154,57 @@ step("グルーピング切替（囲まない）", () => {
   byId.get("grouping").value = "none";
   probe('refresh({ relayout: true })');
   return byId.get("graph-stats").textContent;
+});
+step("整列レイアウトで重なりが無い", () => {
+  byId.get("layout").value = "grid";
+  probe("refresh({ relayout: true })");
+  return probe(`(() => {
+    const ids = visibleGraph().nodes.map((n) => n.id).filter((id) => positions.has(id));
+    let overlaps = 0;
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        const a = positions.get(ids[i]);
+        const b = positions.get(ids[j]);
+        if (Math.abs(a.x - b.x) < NODE_W && Math.abs(a.y - b.y) < NODE_H) overlaps += 1;
+      }
+    }
+    if (overlaps) throw new Error(overlaps + " 組が重なっています");
+    return ids.length + " ノード、重なり 0";
+  })()`);
+});
+step("力学レイアウトでも重なりが無い", () => {
+  byId.get("layout").value = "force";
+  probe("refresh({ relayout: true })");
+  const result = probe(`(() => {
+    const ids = visibleGraph().nodes.map((n) => n.id).filter((id) => positions.has(id));
+    let worst = 0;
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) {
+        const a = positions.get(ids[i]);
+        const b = positions.get(ids[j]);
+        if (Math.abs(a.x - b.x) < NODE_W && Math.abs(a.y - b.y) < NODE_H) worst += 1;
+      }
+    }
+    return worst;
+  })()`);
+  if (result > 0) throw new Error(`${result} 組が重なっています`);
+  byId.get("layout").value = "grid";
+  probe("refresh({ relayout: true })");
+  return "重なり 0";
+});
+step("追加フォーム（ノード）", () => { probe('openAddForm("node")'); return byId.get("inspector").innerHTML.length; });
+step("追加フォーム（エッジ）", () => { probe('openAddForm("edge")'); return byId.get("inspector").innerHTML.length; });
+step("追加フォーム（ハイパーノード）", () => { probe('openAddForm("hypernode")'); return byId.get("inspector").innerHTML.length; });
+step("エッジの接続先を選べる", () => {
+  const html = probe('(() => { const e = doc.edges[0]; select("edge", e.id); return document.getElementById("inspector").innerHTML; })()');
+  if (!html.includes('data-key="source"') || !html.includes('data-key="target"')) {
+    throw new Error("始点・終点の選択欄がありません");
+  }
+  return "始点・終点の選択欄あり";
+});
+step("メンバー選択フォーム", () => {
+  probe('openMembersForm(doc.hypernodes.find((h) => h.kind === "layer"))');
+  return byId.get("inspector").innerHTML.length;
 });
 step("全体表示", () => { probe("fitToScreen()"); return probe("JSON.stringify(view)"); });
 step("YAML書き出し", () => probe('toYaml(doc.toDocument(), 0).length'));
