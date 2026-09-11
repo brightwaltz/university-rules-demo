@@ -98,8 +98,26 @@ schema.org は**科目カタログ・課程・規程・通知**の語彙を十�
 | 要素 | 役割 | 主なキー |
 |---|---|---|
 | `nodes` | 単一の対象。概念（concept）／語彙の用語（term）／ルール種別（rule-type）／語彙そのもの（vocabulary） | `id, kind, label, curie, term_kind, comment, close_match` |
+| `edge_kinds` | 関係の種類そのものの定義。名前・説明・読み下し文 | `id, label, description, reading` |
 | `edges` | 有向の関係。端点には hypernode も取れる | `source, target, kind, label` |
 | `hypernodes` | メンバーを持つノード。入れ子にできる | `id, kind, label, members, about, statement, evidence` |
+
+**エッジの意味は種類が持つ。** `edges` 側は `kind` で種類の id を指すだけにして、意味の説明を1箇所に集めています。各種類は読み下し文の型（`reading`）を持ち、そこへ端点の呼び名を差し込むことで、**どのエッジも日本語の一文になります**。
+
+```yaml
+- id: derived-from
+  label: から導出する
+  description: その用語の値が、別の用語をたどって計算されることを示す。
+  reading: "{source} は {target} をたどって導出する"
+```
+
+```text
+urd:earnedCredits は ccso:hasCompleted をたどって導出する（修得科目をたどって）
+科目 は schema:Course で表す
+urd:requiredCourse は schema:programPrerequisites に意味が近い（同一ではない）
+```
+
+用語は CURIE で示します。概念「科目」と `schema:Course` の和名「科目」のように日本語名が重なることがあり、ラベルのままでは「科目 は 科目 で表す」という読めない文になるためです。各エッジの `label` は、その1本だけに固有の補足として文末へ括弧書きで添えられます。定義に無い種類は読み込み時に弾かれます。
 
 **hypernode** は「ノードでありながら部分グラフを内包するもの」で、用途が2つあります。
 
@@ -136,7 +154,7 @@ hypernode 自身も edge の端点になれます（例：`vocabulary/ccso --def
 | 対象 | できること |
 |---|---|
 | ノード | ラベル・説明・備考の編集、削除 |
-| エッジ | **始点と終点の付け替え**、関係の種類、ラベルの編集、削除 |
+| エッジ | **始点と終点の付け替え**、関係の種類、固有の補足の編集、削除。選ぶと意味の文と種類の説明が出る |
 | ハイパーノード | ラベル・言明・根拠の編集、**メンバー／対象の選び直し**、削除 |
 | 追加 | ノード／エッジ／ハイパーノードをフォームから追加 |
 

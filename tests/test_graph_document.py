@@ -82,6 +82,59 @@ def test_derived_edges_are_not_written_in_the_document():
     assert len(GRAPH.derived_edges) > 20
 
 
+def test_every_edge_kind_is_defined_with_meaning():
+    """関係の種類は、名前・説明・読み下し文を必ず持つ。"""
+    assert len(GRAPH.edge_kinds) >= 10
+    for kind in GRAPH.edge_kinds:
+        assert kind.label, kind.id
+        assert kind.description, kind.id
+        assert "{source}" in kind.reading and "{target}" in kind.reading, kind.id
+
+
+def test_every_edge_kind_used_is_declared():
+    declared = {kind.id for kind in GRAPH.edge_kinds}
+    used = {edge.kind for edge in GRAPH.edges}
+    assert used <= declared, f"未定義の種類: {sorted(used - declared)}"
+
+
+def test_every_edge_reads_as_a_sentence():
+    """どのエッジも、意味が日本語の一文になること。"""
+    for edge in GRAPH.edges:
+        sentence = GRAPH.describe_edge(edge)
+        assert sentence and "{" not in sentence, edge.id
+        # 端点の呼び名が両方入っていること（用語は CURIE で示す）
+        assert GRAPH.endpoint_label(edge.source) in sentence, edge.id
+        assert GRAPH.endpoint_label(edge.target) in sentence, edge.id
+
+
+def test_reading_uses_curie_for_terms_to_avoid_ambiguity():
+    edge = next(e for e in GRAPH.edges
+                if e.source == "concept/course" and e.kind == "uses")
+    assert GRAPH.describe_edge(edge) == "科目 は schema:Course で表す"
+
+
+def test_edge_specific_label_is_appended():
+    edge = next(e for e in GRAPH.edges if e.label == "修得科目をたどって")
+    assert GRAPH.describe_edge(edge) == (
+        "urd:earnedCredits は ccso:hasCompleted をたどって導出する（修得科目をたどって）"
+    )
+
+
+def test_exported_graph_carries_the_reading_of_every_edge():
+    payload = GRAPH.to_dict()
+    assert len(payload["edge_kinds"]) == len(GRAPH.edge_kinds)
+    for row in payload["edges"]:
+        assert row["reading"]
+
+
+def test_undeclared_edge_kind_is_rejected(tmp_path):
+    def mutate(document):
+        document["edges"][0]["kind"] = "made-up"
+
+    with pytest.raises(GraphDocumentError, match="edge_kinds に定義の無い種類"):
+        GraphDocument(write_variant(tmp_path, mutate))
+
+
 def test_derived_edges_cover_every_rule_type_binding():
     for rule_type, ontology in RULE_TYPE_ONTOLOGY.items():
         node_id = f"rule-type/{rule_type}"

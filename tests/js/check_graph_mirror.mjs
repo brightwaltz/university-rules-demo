@@ -33,6 +33,8 @@ const probe = `
     derived_edge_ids: doc.derivedEdges().map((edge) => edge.id).sort(),
     crosswalk: doc.crosswalk(),
     problems: doc.validate(),
+    edge_kinds: doc.edgeKinds,
+    readings: Object.fromEntries(doc.allEdges().map((edge) => [edge.id, doc.describeEdge(edge)])),
     roots: doc.roots().map((hyper) => hyper.id),
     descendants: Object.fromEntries(
       doc.hypernodes.map((hyper) => [hyper.id, doc.descendants(hyper.id).sort()])
