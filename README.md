@@ -4,6 +4,8 @@
 
 データは **schema.org を基底とする共通オントロジー上のナレッジグラフ**（`data/university_graph.jsonld`）として保持し、規則は **そのオントロジーの用語に束縛されたRules as Code**（`data/rules.yaml`）として保持します。
 
+そのオントロジー自体も **node / edge / hypernode からなるグラフ文書**（`data/ontology_graph.yaml`）として持ち、[オントロジーグラフ画面](docs/graph.html)で可視化・編集できます。
+
 ## このデモにおける Rules as Code
 
 ```text
@@ -57,7 +59,7 @@ schema.org は**科目カタログ・課程・規程・通知**の語彙を十�
 | 年間履修上限 | `urd:annualCreditLimit` | — | — | — |
 | 卒業必修科目 | `urd:requiredCourse` | `schema:programPrerequisites`（closeMatch） | `ccso:hasPrerequisite`（closeMatch） | `oloud:subjectRequires`（closeMatch） |
 
-完全な対応表は `src/ontology.py` の `CROSSWALK` にあり、画面の「5. オントロジーとナレッジグラフ」でも参照できます。
+この表は手で保守していません。`data/ontology_graph.yaml` の concept → term エッジから毎回導出しています（後述の[オントロジーグラフ](#オントロジーグラフグラフ文書)）。画面の「5. オントロジーとナレッジグラフ」でも参照できます。
 
 ### OLOUD と CCSO について（事実確認）
 
@@ -86,6 +88,48 @@ schema.org は**科目カタログ・課程・規程・通知**の語彙を十�
 - `skos:closeMatch` の参照先が実在する用語であること
 
 存在しない用語を書いてしまう事故は、テストで落ちます。
+
+## オントロジーグラフ（グラフ文書）
+
+語彙の構造そのものを `data/ontology_graph.yaml` に **グラフ文書**として持ちます。表示用の複製ではなく、`src/ontology.py` がここから語彙定義を読み込むため、編集すると判定・検証・画面表示のすべてに反映されます。
+
+### 3つの構成要素
+
+| 要素 | 役割 | 主なキー |
+|---|---|---|
+| `nodes` | 単一の対象。概念（concept）／語彙の用語（term）／ルール種別（rule-type）／語彙そのもの（vocabulary） | `id, kind, label, curie, term_kind, comment, close_match` |
+| `edges` | 有向の関係。端点には hypernode も取れる | `source, target, kind, label` |
+| `hypernodes` | メンバーを持つノード。入れ子にできる | `id, kind, label, members, about, statement, evidence` |
+
+**hypernode** は「ノードでありながら部分グラフを内包するもの」で、用途が2つあります。
+
+1. **階層構造** — `members` に node / hypernode を入れて入れ子にする。
+   例：`layer/vocabulary` ⊃ `layer/schema-org` ⊃ `term/schema:Course`
+2. **メタ知識** — `about` に対象を列挙し、その集合についての言明（`statement`）と根拠（`evidence`）を持つ。
+   例：`rationale/why-ccso` が「なぜ学籍側を CCSO で補うのか」を、学籍領域と関連用語に対して述べる。
+
+hypernode 自身も edge の端点になれます（例：`vocabulary/ccso --defined-in--> layer/ccso`）。
+
+### AI にも人にも扱いやすくするための約束
+
+- **id は安定させる。** 名称変更は `label` を変える。id を変えると参照が壊れます。
+- **1つの事実は1箇所にだけ書く。** 導出できる関係は `edges` に書きません。ルール種別の `subject_class` / `rule_terms` / `evaluated_terms` と、用語の `close_match` からはエッジが自動生成されます（画面上では鍵アイコン付きで編集不可）。
+- **語彙対応表も導出。** concept → term の `uses` / `alternative` エッジから毎回組み立てるので、表を手で保守しません。
+- **kind は閉じた集合から選ぶ。** 増やすときは `src/graph_document.py` も更新します。
+- **壊れた編集は読み込み時に落ちる。** 参照整合性、未登録の接頭辞、`kind` の誤り、id の重複、hypernode の入れ子の循環、`close_match` の相手不在を検査します（`tests/test_graph_document.py`）。
+
+### 画面で可視化・編集する
+
+`docs/graph.html`（[オントロジーグラフ](docs/graph.html)）で操作できます。
+
+- 力学レイアウトによるグラフ表示。ドラッグで移動、ホイールで拡大縮小、ノードをドラッグすると位置を固定
+- ハイパーノードは囲みとして描画。ダブルクリックで折りたたみ／展開、左ペインの階層ツリーからも辿れる
+- メタ知識（rationale）は 🛈 付きの注釈ノードとして描かれ、`about` の対象へ点線でつながる
+- 語彙レイヤ／業務領域／ルール種別で囲みを切り替え、導出エッジやメタ知識の表示を切り替え
+- 右ペインのインスペクタでラベル・説明・メンバー・言明を編集。ノード／エッジ／ハイパーノードの追加と削除
+- 編集は閲覧中のブラウザの `localStorage` に保存され、**同じ形式の YAML として書き出せます**。書き出したファイルを `data/ontology_graph.yaml` へ置き、`python scripts/sync_docs_data.py && python -m pytest` を実行すればリポジトリへ取り込めます
+
+書き出した YAML が実際に読み戻せることは `tests/test_docs_mirror.py` が検証しています（Node.js で画面のモデル層を実行し、Python の読み込み結果と突き合わせ）。
 
 ## ナレッジグラフ
 
@@ -221,7 +265,12 @@ streamlit run app.py
 
 ## 公開デモ
 
-GitHub Pages向けの静的デモを `docs/index.html` に収録しています。Pythonサーバーを実行できないGitHub Pages上でも、学生選択、通知、質問判定、判定根拠、ルールCRUD、語彙対応表をブラウザ内の決定論的JavaScriptで実行します。
+GitHub Pages向けの静的サイトを `docs/` に収録しています。Pythonサーバーを実行できないGitHub Pages上でも、ブラウザ内の決定論的JavaScriptで動きます。
+
+| ページ | 内容 |
+|---|---|
+| `docs/index.html` | 学生選択、通知、質問判定、判定根拠、ルールCRUD、語彙対応表 |
+| `docs/graph.html` | オントロジーグラフの可視化・編集、グラフ文書の書き出し |
 
 - ページ自体に `<script type="application/ld+json">` としてナレッジグラフが埋め込まれており、保存すればそのままRDFツールで読み込めます。
 - Streamlit版のルール変更は `data/rules.yaml` に保存されます。
@@ -232,15 +281,17 @@ GitHub Pages向けの静的デモを `docs/index.html` に収録しています�
 
 Pages版はサーバーを持てないため、判定ロジックをJavaScriptで二重に実装しています。放置すれば必ず乖離するので、次の仕組みで抑えています。
 
-- **語彙とデータは単一情報源**：グラフ・ルール・語彙定義はHTMLに埋め込みますが、`scripts/sync_docs_data.py` が `data/` と `src/ontology.py` から生成します。
+- **語彙とデータは単一情報源**：ナレッジグラフ・ルール・語彙定義・オントロジーグラフはHTMLに埋め込みますが、`scripts/sync_docs_data.py` が `data/` と `src/ontology.py` から生成します。
 
   ```bash
   python scripts/sync_docs_data.py
   ```
 
-- **判定結果は機械的に照合**：`tests/test_docs_mirror.py` が `docs/index.html` の `<script id="engine">` をNode.jsで実行し、学生の射影・全質問への回答・通知が Python 実装と一致するかを検証します（Node.jsが無い環境ではスキップ）。
+- **判定結果は機械的に照合**：`tests/test_docs_mirror.py` が `docs/index.html` の `<script id="engine">` をNode.jsで実行し、学生の射影・全質問への回答・通知が Python 実装と一致するかを検証します。
 
-`data/` や `src/ontology.py` を変更したら、同期スクリプトを実行してください。実行し忘れるとテストが落ちます。
+- **グラフ画面も同様**：`docs/graph.html` の `<script id="graph-engine">` をNode.jsで実行し、導出エッジ・語彙対応表・階層の走査・検証結果が `src/graph_document.py` と一致すること、書き出した YAML が読み戻せることを確認します。加えて最小限のDOMスタブの上で描画と主要操作を通し、例外が出ないことも確かめます。
+
+いずれも Node.js が無い環境ではスキップされます。`data/` や `src/ontology.py` を変更したら、同期スクリプトを実行してください。実行し忘れるとテストが落ちます。
 
 ## テスト
 
@@ -250,7 +301,7 @@ Pages版はサーバーを持てないため、判定ロジックをJavaScript�
 python -m pytest
 ```
 
-単位上限、卒業要件、卒業研究、通知、未知質問、代表的な表現ゆれ、ルールCRUD、Streamlit画面操作に加えて、オントロジー用語の実在、ナレッジグラフの射影、rdflib/SPARQLでの相互運用、Pages版との一致をテストしています。
+単位上限、卒業要件、卒業研究、通知、未知質問、代表的な表現ゆれ、ルールCRUD、Streamlit画面操作に加えて、オントロジー用語の実在、グラフ文書の構造と壊れた編集の拒否、ナレッジグラフの射影、rdflib/SPARQLでの相互運用、Pages版2ページとの一致をテストしています。
 
 ## ファイル構成
 
@@ -259,15 +310,21 @@ university-rules-demo/
 ├── app.py                         # Streamlit UI
 ├── requirements.txt
 ├── README.md
+├── docs/
+│   ├── index.html                 # 公開デモ（判定・通知・ルールCRUD）
+│   ├── graph.html                 # オントロジーグラフの可視化・編集
+│   └── assets/site.css            # 2ページ共通のスタイル
 ├── data/
+│   ├── ontology_graph.yaml        # オントロジーのグラフ文書（node/edge/hypernode）
 │   ├── university_graph.jsonld    # ナレッジグラフ（学生・科目・規程・組織）
 │   ├── rules.yaml                 # 規則値と、対象ノード・根拠条文への接続
 │   ├── schemaorg_terms.json       # schema.org 30.0 の用語名（実在検証用）
 │   └── ccso_terms.json            # CCSO 0.7 の用語名（実在検証用）
 ├── scripts/
-│   └── sync_docs_data.py          # docs/index.html の埋め込みデータを再生成
+│   └── sync_docs_data.py          # docs/ の埋め込みデータを再生成
 ├── src/
-│   ├── ontology.py                # 語彙定義・ルール種別の語彙束縛・対応表
+│   ├── graph_document.py          # グラフ文書の読み込み・検証・導出
+│   ├── ontology.py                # グラフ文書からの語彙定義の射影
 │   ├── knowledge_graph.py         # JSON-LDの読み込みと内部モデルへの射影
 │   ├── models.py                  # Pydanticモデル
 │   ├── rule_engine.py             # 決定論的な条件評価
@@ -278,9 +335,13 @@ university-rules-demo/
 │   └── answer_service.py          # Intentから判定処理へのルーティング
 └── tests/
     ├── conftest.py
-    ├── js/check_mirror.mjs        # Pages版のJSをNode.jsで実行する照合用ハーネス
+    ├── js/
+    │   ├── check_mirror.mjs        # デモ画面の判定をNode.jsで実行する照合用
+    │   ├── check_graph_mirror.mjs  # グラフ画面のモデル層の照合用
+    │   └── check_graph_render.mjs  # グラフ画面の描画スモークテスト
     ├── test_app.py
     ├── test_docs_mirror.py
+    ├── test_graph_document.py
     ├── test_intent_and_answers.py
     ├── test_jsonld_interop.py
     ├── test_knowledge_graph.py
@@ -289,6 +350,8 @@ university-rules-demo/
     ├── test_rule_engine.py
     └── test_rule_repository.py
 ```
+
+サイトは2ページ構成です。`docs/index.html` が判定・通知・ルールCRUDのデモ、`docs/graph.html` がオントロジーの構造。共通のヘッダーから相互に行き来でき、スタイルは `docs/assets/site.css` を共有します。
 
 ## デモで試す質問
 
@@ -320,8 +383,8 @@ university-rules-demo/
 
 新しい**ルール種別そのもの**を開発する場合は、次の手順です。
 
-1. `src/ontology.py` の `RULE_TYPE_ONTOLOGY` に、対象クラス・用語・Horn節を追加します。
-2. schema.org / CCSO に用語が無い場合だけ `LOCAL_TERM_DEFINITIONS` と `CROSSWALK` に追加します。
+1. `data/ontology_graph.yaml` に `rule-type` ノードを追加し、対象クラス・用語・Horn節を書きます（画面から追加して書き出しても構いません）。1種別1件にするなら `rule-group/institutional` のメンバーに入れます。
+2. schema.org / CCSO に用語が無い場合だけ `term` ノードを `urd:` で追加し、`layer/local` のメンバーに入れ、近い用語を `close_match` に書きます。概念を増やすときは `concept` ノードと `uses` / `alternative` エッジを足せば、語彙対応表には自動で載ります。
 3. `src/rule_repository.py` に入力検証を追加します。
 4. `src/rule_engine.py` に、そのルールを読み取る明示的な評価メソッドを追加します。
 5. `app.py` に種別固有の管理フォームを追加します。
@@ -348,6 +411,7 @@ YAMLの条件式をそのまま実行する設計にはしていません。任�
 
 | 現在 | 将来の置き換え候補 | 主な変更箇所 |
 |---|---|---|
+| `ontology_graph.yaml` | OWL / SKOS / 共通オントロジー基盤 | `GraphDocument` の読み込み元を差し替え。node/edge/hypernode の構造は維持 |
 | `university_graph.jsonld` | Personary / PLR / 本格的なKnowledge Graph | `KnowledgeGraph` の読み込み元を差し替え。語彙はそのまま |
 | 自前のJSON-LDローダー | rdflib / トリプルストア / SPARQLエンドポイント | `KnowledgeGraph` の内部実装のみ |
 | `rules.yaml` | 本格的Rules as Code基盤 | `RuleEngine` の規則取得部分をアダプター化 |

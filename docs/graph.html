@@ -1,0 +1,3073 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>オントロジーグラフ｜大学 Rules as Code アシスタント</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="site-header">
+  <a class="brand" href="index.html">大学 Rules as Code アシスタント<small>schema.org オントロジーに基づく研究用プロトタイプ</small></a>
+  <nav class="site-nav">
+    <a href="index.html">デモ</a>
+    <a href="graph.html" aria-current="page">オントロジーグラフ</a>
+  </nav>
+</header>
+
+<div class="wrap-wide">
+  <h1>オントロジーグラフ</h1>
+  <p class="lead">
+    語彙の構造を node / edge / hypernode で表したグラフ文書（<code>data/ontology_graph.yaml</code>）を可視化・編集します。
+    hypernode は階層（語彙レイヤ・業務領域）と、メタ知識（なぜその用語を選んだか）の両方を表します。
+    編集結果は同じ形式で書き出せるので、リポジトリへ戻せます。
+  </p>
+
+  <div class="toolbar">
+    <input id="search" type="search" placeholder="ノードを検索（ラベル・CURIE）" size="26">
+    <select id="grouping" title="ハイパーノードの表示">
+      <option value="layer">語彙レイヤで囲む</option>
+      <option value="domain">業務領域で囲む</option>
+      <option value="rule-group">ルール種別で囲む</option>
+      <option value="none">囲まない</option>
+    </select>
+    <label class="tag"><input type="checkbox" id="show-derived" checked> 導出エッジ</label>
+    <label class="tag"><input type="checkbox" id="show-rationale" checked> メタ知識</label>
+    <span class="spacer"></span>
+    <button id="relayout">再配置</button>
+    <button id="fit">全体表示</button>
+    <button id="add-node">ノード追加</button>
+    <button id="add-edge">エッジ追加</button>
+    <button id="add-hyper">ハイパーノード追加</button>
+    <button id="export-yaml" class="primary">YAMLで書き出し</button>
+    <button id="export-json">JSON</button>
+    <button id="reset" class="danger">編集を破棄</button>
+  </div>
+  <div id="global-status"></div>
+
+  <section class="panel" id="export-panel" hidden style="margin-bottom:12px">
+    <header>書き出し<span class="muted" id="export-caption" style="font-weight:400"></span></header>
+    <div class="body">
+      <div class="row">
+        <button id="export-copy" class="primary">クリップボードにコピー</button>
+        <button id="export-download">ファイルとして保存</button>
+        <button id="export-close">閉じる</button>
+        <span class="muted" id="export-note"></span>
+      </div>
+      <textarea id="export-text" rows="14" spellcheck="false"
+                style="width:100%;font-family:var(--mono);font-size:.78rem"></textarea>
+    </div>
+  </section>
+
+  <div class="graph-layout">
+
+    <div>
+      <section class="panel">
+        <header>階層（hypernode）</header>
+        <div class="body tight side-scroll"><ul class="tree" id="tree"></ul></div>
+      </section>
+
+      <section class="panel" style="margin-top:12px">
+        <header>凡例</header>
+        <div class="body">
+          <div class="legend" id="legend"></div>
+        </div>
+      </section>
+
+      <section class="panel" style="margin-top:12px">
+        <header>この文書について</header>
+        <div class="body">
+          <p class="muted" id="doc-meta" style="margin:0 0 8px"></p>
+          <p class="muted" style="margin:0">
+            導出エッジ（破線・鍵アイコン）は <code>rule_terms</code> や <code>close_match</code> から
+            自動生成されるため編集できません。元の属性を直すと変わります。
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel canvas-panel">
+      <header>グラフ<span class="muted" id="graph-stats" style="font-weight:400"></span></header>
+      <div class="body">
+        <svg id="graph-canvas" role="img" aria-label="オントロジーの構造グラフ"></svg>
+        <div class="canvas-hint">ドラッグで移動／ホイールで拡大縮小／ノードをドラッグで固定／ハイパーノードをダブルクリックで折りたたみ</div>
+      </div>
+    </section>
+
+    <section class="panel inspector-panel inspector">
+      <header>インスペクタ</header>
+      <div class="body side-scroll" id="inspector">
+        <p class="muted">ノードまたはエッジを選択してください。</p>
+      </div>
+    </section>
+
+  </div>
+
+  <section class="panel" style="margin-top:16px">
+    <header>グラフ文書の形式</header>
+    <div class="body">
+      <p class="muted" style="margin-top:0">
+        AI にも人にも読み書きしやすいことを狙って、次の3要素だけで構成しています。
+        1つの事実は1箇所にだけ書き、導出できる関係は書きません。
+      </p>
+      <table>
+        <thead><tr><th>要素</th><th>役割</th><th>主なキー</th></tr></thead>
+        <tbody>
+          <tr><td><code>nodes</code></td><td>単一の対象。概念・語彙の用語・ルール種別・語彙そのもの</td>
+              <td><code>id, kind, label, curie, term_kind, comment, close_match</code></td></tr>
+          <tr><td><code>edges</code></td><td>有向の関係。端点には hypernode も取れる</td>
+              <td><code>source, target, kind, label</code></td></tr>
+          <tr><td><code>hypernodes</code></td><td>メンバーを持つノード。入れ子にできる</td>
+              <td><code>id, kind, label, members, about, statement, evidence</code></td></tr>
+        </tbody>
+      </table>
+      <p class="muted">
+        <code>members</code> が階層構造を、<code>about</code> ＋ <code>statement</code> がメタ知識を表します。
+        参照整合性と入れ子の循環は、この画面と <code>src/graph_document.py</code> の両方で検査します。
+      </p>
+    </div>
+  </section>
+</div>
+
+<!-- BEGIN ontology-graph (generated by scripts/sync_docs_data.py from data/ontology_graph.yaml) -->
+<script type="application/json" id="ontology-graph">
+{
+ "meta": {
+  "title": "大学 Rules as Code オントロジーグラフ",
+  "description": "学生・科目・規程・判定を表す語彙と、その選定理由を1つのグラフとして持つ。",
+  "version": 1
+ },
+ "namespaces": [
+  {
+   "prefix": "schema",
+   "iri": "https://schema.org/",
+   "label": "schema.org",
+   "role": "base",
+   "version": "30.0",
+   "note": "本デモの基底語彙。科目カタログ・課程・規程・通知の語彙を持つ。"
+  },
+  {
+   "prefix": "ccso",
+   "iri": "https://w3id.org/ccso/ccso#",
+   "label": "CCSO (Curriculum Course Syllabus Ontology)",
+   "role": "complement",
+   "version": "0.7",
+   "note": "学籍側の語彙を補う。CCSO自身が schema.org の用語を再利用している。"
+  },
+  {
+   "prefix": "urd",
+   "iri": "https://brightwaltz.github.io/university-rules-demo/ns#",
+   "label": "ローカル拡張（語彙）",
+   "role": "local",
+   "note": "schema.org にも CCSO にも無い概念だけをここに定義する。"
+  },
+  {
+   "prefix": "urdi",
+   "iri": "https://brightwaltz.github.io/university-rules-demo/id/",
+   "label": "ローカル拡張（インスタンス）",
+   "role": "local",
+   "note": "学生・科目・条文などのノードのIRI。語彙とデータを接頭辞で分ける。"
+  },
+  {
+   "prefix": "oloud",
+   "iri": "http://lod.nik.uni-obuda.hu/oloud/oloud#",
+   "label": "OLOUD",
+   "role": "reference",
+   "note": "参照のみ。AIISO/FOAF/Dublin Core 系で schema.org は使わない。"
+  },
+  {
+   "prefix": "skos",
+   "iri": "http://www.w3.org/2004/02/skos/core#",
+   "label": "SKOS",
+   "role": "support",
+   "note": "closeMatch の表明に使う。"
+  },
+  {
+   "prefix": "rdfs",
+   "iri": "http://www.w3.org/2000/01/rdf-schema#",
+   "label": "RDFS",
+   "role": "support"
+  },
+  {
+   "prefix": "xsd",
+   "iri": "http://www.w3.org/2001/XMLSchema#",
+   "label": "XML Schema Datatypes",
+   "role": "support"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "vocabulary/schema-org",
+   "kind": "vocabulary",
+   "label": "schema.org",
+   "prefix": "schema"
+  },
+  {
+   "id": "vocabulary/ccso",
+   "kind": "vocabulary",
+   "label": "CCSO",
+   "prefix": "ccso"
+  },
+  {
+   "id": "vocabulary/oloud",
+   "kind": "vocabulary",
+   "label": "OLOUD",
+   "prefix": "oloud"
+  },
+  {
+   "id": "vocabulary/local",
+   "kind": "vocabulary",
+   "label": "ローカル拡張",
+   "prefix": "urd"
+  },
+  {
+   "id": "concept/university",
+   "kind": "concept",
+   "label": "大学"
+  },
+  {
+   "id": "concept/faculty",
+   "kind": "concept",
+   "label": "学部"
+  },
+  {
+   "id": "concept/program",
+   "kind": "concept",
+   "label": "課程・プログラム"
+  },
+  {
+   "id": "concept/credential",
+   "kind": "concept",
+   "label": "学位"
+  },
+  {
+   "id": "concept/course",
+   "kind": "concept",
+   "label": "科目"
+  },
+  {
+   "id": "concept/credits",
+   "kind": "concept",
+   "label": "単位数"
+  },
+  {
+   "id": "concept/course-code",
+   "kind": "concept",
+   "label": "科目コード"
+  },
+  {
+   "id": "concept/required-course",
+   "kind": "concept",
+   "label": "卒業必修科目"
+  },
+  {
+   "id": "concept/student",
+   "kind": "concept",
+   "label": "学生"
+  },
+  {
+   "id": "concept/enrollment",
+   "kind": "concept",
+   "label": "在籍"
+  },
+  {
+   "id": "concept/completed-course",
+   "kind": "concept",
+   "label": "修得済み科目"
+  },
+  {
+   "id": "concept/registered-course",
+   "kind": "concept",
+   "label": "履修登録済み科目"
+  },
+  {
+   "id": "concept/registration-action",
+   "kind": "concept",
+   "label": "履修登録という行為と状態"
+  },
+  {
+   "id": "concept/year-of-study",
+   "kind": "concept",
+   "label": "学年"
+  },
+  {
+   "id": "concept/earned-credits",
+   "kind": "concept",
+   "label": "修得単位数の合計"
+  },
+  {
+   "id": "concept/legislation",
+   "kind": "concept",
+   "label": "学則・履修規程"
+  },
+  {
+   "id": "concept/rule",
+   "kind": "concept",
+   "label": "ルール"
+  },
+  {
+   "id": "concept/registration-deadline",
+   "kind": "concept",
+   "label": "履修登録期限"
+  },
+  {
+   "id": "concept/annual-credit-limit",
+   "kind": "concept",
+   "label": "年間履修上限"
+  },
+  {
+   "id": "concept/decision",
+   "kind": "concept",
+   "label": "判定結果"
+  },
+  {
+   "id": "concept/premise",
+   "kind": "concept",
+   "label": "判定の前提"
+  },
+  {
+   "id": "concept/notification",
+   "kind": "concept",
+   "label": "通知"
+  },
+  {
+   "id": "term/schema:CollegeOrUniversity",
+   "kind": "term",
+   "label": "大学",
+   "curie": "schema:CollegeOrUniversity",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:EducationalOrganization",
+   "kind": "term",
+   "label": "教育機関",
+   "curie": "schema:EducationalOrganization",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:EducationalOccupationalProgram",
+   "kind": "term",
+   "label": "課程",
+   "curie": "schema:EducationalOccupationalProgram",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:Course",
+   "kind": "term",
+   "label": "科目",
+   "curie": "schema:Course",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:Person",
+   "kind": "term",
+   "label": "人",
+   "curie": "schema:Person",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:EducationalOccupationalCredential",
+   "kind": "term",
+   "label": "学位・資格",
+   "curie": "schema:EducationalOccupationalCredential",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:Legislation",
+   "kind": "term",
+   "label": "法令・規程",
+   "curie": "schema:Legislation",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:Message",
+   "kind": "term",
+   "label": "メッセージ",
+   "curie": "schema:Message",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:RegisterAction",
+   "kind": "term",
+   "label": "登録行為",
+   "curie": "schema:RegisterAction",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/schema:actionStatus",
+   "kind": "term",
+   "label": "行為の状態",
+   "curie": "schema:actionStatus",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:applicationDeadline",
+   "kind": "term",
+   "label": "申請期限",
+   "curie": "schema:applicationDeadline",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:numberOfCredits",
+   "kind": "term",
+   "label": "単位数",
+   "curie": "schema:numberOfCredits",
+   "term_kind": "property",
+   "note": "domain は Course と EducationalOccupationalProgram のみ。Person には付けられない。"
+  },
+  {
+   "id": "term/schema:courseCode",
+   "kind": "term",
+   "label": "科目コード",
+   "curie": "schema:courseCode",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:coursePrerequisites",
+   "kind": "term",
+   "label": "科目の前提",
+   "curie": "schema:coursePrerequisites",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:programPrerequisites",
+   "kind": "term",
+   "label": "課程の入学要件",
+   "curie": "schema:programPrerequisites",
+   "term_kind": "property",
+   "note": "修了要件ではない。"
+  },
+  {
+   "id": "term/schema:identifier",
+   "kind": "term",
+   "label": "識別子",
+   "curie": "schema:identifier",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:name",
+   "kind": "term",
+   "label": "名称",
+   "curie": "schema:name",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:affiliation",
+   "kind": "term",
+   "label": "所属",
+   "curie": "schema:affiliation",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:text",
+   "kind": "term",
+   "label": "本文",
+   "curie": "schema:text",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:about",
+   "kind": "term",
+   "label": "主題",
+   "curie": "schema:about",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/schema:citation",
+   "kind": "term",
+   "label": "引用",
+   "curie": "schema:citation",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/ccso:Student",
+   "kind": "term",
+   "label": "学生",
+   "curie": "ccso:Student",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/ccso:UndergraduateStudent",
+   "kind": "term",
+   "label": "学部学生",
+   "curie": "ccso:UndergraduateStudent",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/ccso:ProgramofStudy",
+   "kind": "term",
+   "label": "課程",
+   "curie": "ccso:ProgramofStudy",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/ccso:Course",
+   "kind": "term",
+   "label": "科目",
+   "curie": "ccso:Course",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/ccso:University",
+   "kind": "term",
+   "label": "大学",
+   "curie": "ccso:University",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/ccso:School",
+   "kind": "term",
+   "label": "学部",
+   "curie": "ccso:School",
+   "term_kind": "class"
+  },
+  {
+   "id": "term/ccso:enrolledIn",
+   "kind": "term",
+   "label": "在籍している",
+   "curie": "ccso:enrolledIn",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/ccso:hasCompleted",
+   "kind": "term",
+   "label": "修得した",
+   "curie": "ccso:hasCompleted",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/ccso:hasRegistered",
+   "kind": "term",
+   "label": "履修登録した",
+   "curie": "ccso:hasRegistered",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/ccso:hasPrerequisite",
+   "kind": "term",
+   "label": "前提を持つ",
+   "curie": "ccso:hasPrerequisite",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/ccso:creditsECTS",
+   "kind": "term",
+   "label": "ECTS単位数",
+   "curie": "ccso:creditsECTS",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/ccso:code",
+   "kind": "term",
+   "label": "コード",
+   "curie": "ccso:code",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/oloud:subjectRequires",
+   "kind": "term",
+   "label": "科目の前提",
+   "curie": "oloud:subjectRequires",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/oloud:subjectCredit",
+   "kind": "term",
+   "label": "科目の単位数",
+   "curie": "oloud:subjectCredit",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/oloud:studyProgramme",
+   "kind": "term",
+   "label": "課程",
+   "curie": "oloud:studyProgramme",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/oloud:degree",
+   "kind": "term",
+   "label": "学位",
+   "curie": "oloud:degree",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/oloud:courseTerm",
+   "kind": "term",
+   "label": "開講学期",
+   "curie": "oloud:courseTerm",
+   "term_kind": "property"
+  },
+  {
+   "id": "term/urd:yearOfStudy",
+   "kind": "term",
+   "label": "学年",
+   "curie": "urd:yearOfStudy",
+   "term_kind": "property",
+   "comment": "学生が在籍している年次。schema.org・CCSO ともに該当用語が無い。"
+  },
+  {
+   "id": "term/urd:earnedCredits",
+   "kind": "term",
+   "label": "修得単位数",
+   "curie": "urd:earnedCredits",
+   "term_kind": "property",
+   "comment": "ccso:hasCompleted で結ばれた科目の schema:numberOfCredits の合計。 schema:numberOfCredits は Person を domain に取れないため別用語とした。"
+  },
+  {
+   "id": "term/urd:registeredCredits",
+   "kind": "term",
+   "label": "履修登録単位数",
+   "curie": "urd:registeredCredits",
+   "term_kind": "property",
+   "comment": "ccso:hasRegistered で結ばれた科目の schema:numberOfCredits の合計。"
+  },
+  {
+   "id": "term/urd:annualCreditLimit",
+   "kind": "term",
+   "label": "年間履修上限単位数",
+   "curie": "urd:annualCreditLimit",
+   "term_kind": "property",
+   "comment": "1年度に履修登録できる単位数の上限。schema.org に該当用語が無い。"
+  },
+  {
+   "id": "term/urd:requiredCourse",
+   "kind": "term",
+   "label": "卒業必修科目",
+   "curie": "urd:requiredCourse",
+   "term_kind": "property",
+   "comment": "課程を修了するために修得が必要な科目。 schema:programPrerequisites は入学要件を指すため同一視しない。",
+   "close_match": [
+    "schema:programPrerequisites",
+    "ccso:hasPrerequisite"
+   ]
+  },
+  {
+   "id": "term/urd:minimumYearOfStudy",
+   "kind": "term",
+   "label": "履修に必要な最低学年",
+   "curie": "urd:minimumYearOfStudy",
+   "term_kind": "property",
+   "comment": "科目を履修登録するために必要な最低年次。"
+  },
+  {
+   "id": "term/urd:minimumEarnedCredits",
+   "kind": "term",
+   "label": "履修に必要な最低修得単位数",
+   "curie": "urd:minimumEarnedCredits",
+   "term_kind": "property",
+   "comment": "科目を履修登録するために必要な修得単位数の下限。",
+   "close_match": [
+    "schema:coursePrerequisites"
+   ]
+  },
+  {
+   "id": "term/urd:evaluationDate",
+   "kind": "term",
+   "label": "判定基準日",
+   "curie": "urd:evaluationDate",
+   "term_kind": "property",
+   "comment": "デモを再現可能にするために固定した評価日。"
+  },
+  {
+   "id": "term/urd:notificationLevel",
+   "kind": "term",
+   "label": "通知レベル",
+   "curie": "urd:notificationLevel",
+   "term_kind": "property",
+   "comment": "通知の重要度。info / success / warning / error。"
+  },
+  {
+   "id": "term/urd:courseCategory",
+   "kind": "term",
+   "label": "科目区分",
+   "curie": "urd:courseCategory",
+   "term_kind": "property",
+   "comment": "教養科目・専門基礎科目などの区分。schema:DefinedTerm を値に取る。",
+   "close_match": [
+    "schema:about"
+   ]
+  },
+  {
+   "id": "term/urd:semester",
+   "kind": "term",
+   "label": "学期",
+   "curie": "urd:semester",
+   "term_kind": "property",
+   "comment": "前期（first）／後期（second）。",
+   "close_match": [
+    "oloud:courseTerm"
+   ]
+  },
+  {
+   "id": "term/urd:Rule",
+   "kind": "term",
+   "label": "ルール",
+   "curie": "urd:Rule",
+   "term_kind": "class",
+   "comment": "data/rules.yaml の1件。規程の条文を機械可読にしたもの。"
+  },
+  {
+   "id": "term/urd:DecisionResult",
+   "kind": "term",
+   "label": "判定結果",
+   "curie": "urd:DecisionResult",
+   "term_kind": "class",
+   "comment": "Rule Engine が返した決定論的な判定。生成AIは介在しない。"
+  },
+  {
+   "id": "term/urd:Premise",
+   "kind": "term",
+   "label": "前提",
+   "curie": "urd:Premise",
+   "term_kind": "class",
+   "comment": "判定の根拠となった原子論理式ひとつ分。Horn節の本体に対応する。"
+  },
+  {
+   "id": "term/urd:constrains",
+   "kind": "term",
+   "label": "制約対象",
+   "curie": "urd:constrains",
+   "term_kind": "property",
+   "comment": "ルールが制約するノード。"
+  },
+  {
+   "id": "term/urd:basedOnLegislation",
+   "kind": "term",
+   "label": "根拠条文",
+   "curie": "urd:basedOnLegislation",
+   "term_kind": "property",
+   "comment": "ルールの根拠となる schema:Legislation ノード。",
+   "close_match": [
+    "schema:citation"
+   ]
+  },
+  {
+   "id": "term/urd:hornClause",
+   "kind": "term",
+   "label": "Horn節",
+   "curie": "urd:hornClause",
+   "term_kind": "property",
+   "comment": "判定をHorn節として書き下したもの。人間のレビュー用で、実行はしない。"
+  },
+  {
+   "id": "term/urd:status",
+   "kind": "term",
+   "label": "判定区分",
+   "curie": "urd:status",
+   "term_kind": "property",
+   "comment": "eligible / not_eligible / info / unknown。"
+  },
+  {
+   "id": "term/urd:appliedRule",
+   "kind": "term",
+   "label": "適用ルール",
+   "curie": "urd:appliedRule",
+   "term_kind": "property",
+   "comment": "判定に使ったルール。"
+  },
+  {
+   "id": "term/urd:usesTerm",
+   "kind": "term",
+   "label": "使用用語",
+   "curie": "urd:usesTerm",
+   "term_kind": "property",
+   "comment": "判定が読んだオントロジー用語。"
+  },
+  {
+   "id": "term/urd:premise",
+   "kind": "term",
+   "label": "前提",
+   "curie": "urd:premise",
+   "term_kind": "property",
+   "comment": "判定結果が持つ前提の並び。"
+  },
+  {
+   "id": "term/urd:satisfied",
+   "kind": "term",
+   "label": "充足",
+   "curie": "urd:satisfied",
+   "term_kind": "property",
+   "comment": "その前提が満たされたかどうか。"
+  },
+  {
+   "id": "term/urd:comparator",
+   "kind": "term",
+   "label": "比較演算子",
+   "curie": "urd:comparator",
+   "term_kind": "property",
+   "comment": ">= や contains など、前提の評価に使った演算子。"
+  },
+  {
+   "id": "term/urd:actualValue",
+   "kind": "term",
+   "label": "実際の値",
+   "curie": "urd:actualValue",
+   "term_kind": "property",
+   "comment": "グラフから読み取った値。"
+  },
+  {
+   "id": "term/urd:expectedValue",
+   "kind": "term",
+   "label": "期待する値",
+   "curie": "urd:expectedValue",
+   "term_kind": "property",
+   "comment": "ルールが要求する値。"
+  },
+  {
+   "id": "term/urd:unmetCondition",
+   "kind": "term",
+   "label": "満たしていない条件",
+   "curie": "urd:unmetCondition",
+   "term_kind": "property",
+   "comment": "不足している要件の説明文。"
+  },
+  {
+   "id": "term/urd:calculation",
+   "kind": "term",
+   "label": "計算式",
+   "curie": "urd:calculation",
+   "term_kind": "property",
+   "comment": "数値判定の計算過程。"
+  },
+  {
+   "id": "term/urd:decision",
+   "kind": "term",
+   "label": "判定",
+   "curie": "urd:decision",
+   "term_kind": "property",
+   "comment": "通知の根拠となった判定結果。"
+  },
+  {
+   "id": "term/urd:question",
+   "kind": "term",
+   "label": "質問",
+   "curie": "urd:question",
+   "term_kind": "property",
+   "comment": "利用者が入力した自然言語の質問。"
+  },
+  {
+   "id": "term/urd:detectedIntent",
+   "kind": "term",
+   "label": "検出したIntent",
+   "curie": "urd:detectedIntent",
+   "term_kind": "property",
+   "comment": "ルールベースIntent Detectionが返した意図。"
+  },
+  {
+   "id": "rule-type/registration_deadline",
+   "kind": "rule-type",
+   "label": "履修登録期限",
+   "rule_type": "registration_deadline",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "deadline": "schema:applicationDeadline"
+   },
+   "evaluated_terms": [
+    "urd:evaluationDate"
+   ],
+   "horn_clause": "registration_deadline(Program, Deadline, DaysLeft) :- schema:applicationDeadline(Program, Deadline), urd:evaluationDate(Today), DaysLeft is Deadline - Today."
+  },
+  {
+   "id": "rule-type/annual_credit_limit",
+   "kind": "rule-type",
+   "label": "年間履修上限",
+   "rule_type": "annual_credit_limit",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "max_credits": "urd:annualCreditLimit"
+   },
+   "evaluated_terms": [
+    "ccso:hasRegistered",
+    "schema:numberOfCredits"
+   ],
+   "horn_clause": "remaining_credits(Student, Remaining) :- ccso:enrolledIn(Student, Program), urd:annualCreditLimit(Program, Limit), urd:registeredCredits(Student, Registered), Remaining is max(0, Limit - Registered)."
+  },
+  {
+   "id": "rule-type/graduation_credit_requirement",
+   "kind": "rule-type",
+   "label": "卒業必要単位数",
+   "rule_type": "graduation_credit_requirement",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "required_credits": "schema:numberOfCredits"
+   },
+   "evaluated_terms": [
+    "urd:earnedCredits"
+   ],
+   "horn_clause": "meets_credit_requirement(Student) :- ccso:enrolledIn(Student, Program), schema:numberOfCredits(Program, Required), urd:earnedCredits(Student, Earned), Earned >= Required."
+  },
+  {
+   "id": "rule-type/graduation_required_courses",
+   "kind": "rule-type",
+   "label": "卒業必修科目",
+   "rule_type": "graduation_required_courses",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "required_courses": "urd:requiredCourse"
+   },
+   "evaluated_terms": [
+    "ccso:hasCompleted"
+   ],
+   "horn_clause": "meets_course_requirement(Student) :- ccso:enrolledIn(Student, Program), forall(urd:requiredCourse(Program, Course), ccso:hasCompleted(Student, Course))."
+  },
+  {
+   "id": "rule-type/thesis_eligibility",
+   "kind": "rule-type",
+   "label": "卒業研究履修条件",
+   "rule_type": "thesis_eligibility",
+   "subject_class": "schema:Course",
+   "rule_terms": {
+    "required_courses": "schema:coursePrerequisites",
+    "minimum_year_of_study": "urd:minimumYearOfStudy",
+    "minimum_earned_credits": "urd:minimumEarnedCredits"
+   },
+   "evaluated_terms": [
+    "urd:yearOfStudy",
+    "urd:earnedCredits",
+    "ccso:hasCompleted"
+   ],
+   "horn_clause": "eligible_to_register(Student, Thesis) :- urd:minimumYearOfStudy(Thesis, MinYear), urd:yearOfStudy(Student, Year), Year >= MinYear, urd:minimumEarnedCredits(Thesis, MinCredits), urd:earnedCredits(Student, Earned), Earned >= MinCredits, forall(schema:coursePrerequisites(Thesis, Course), ccso:hasCompleted(Student, Course))."
+  },
+  {
+   "id": "rule-type/personalized_notification",
+   "kind": "rule-type",
+   "label": "個別通知ルール",
+   "rule_type": "personalized_notification",
+   "subject_class": "schema:Person",
+   "rule_terms": {
+    "message": "schema:text",
+    "level": "urd:notificationLevel"
+   },
+   "evaluated_terms": [],
+   "horn_clause": "notify(Student, Message) :- condition_1(Student), ..., condition_n(Student), schema:text(Rule, Message)."
+  }
+ ],
+ "hypernodes": [
+  {
+   "id": "layer/vocabulary",
+   "kind": "layer",
+   "label": "語彙レイヤ",
+   "members": [
+    "layer/schema-org",
+    "layer/ccso",
+    "layer/local",
+    "layer/reference"
+   ],
+   "about": [],
+   "note": "どの語彙から用語を採ったかによる階層。"
+  },
+  {
+   "id": "layer/schema-org",
+   "kind": "layer",
+   "label": "schema.org 層",
+   "members": [
+    "term/schema:CollegeOrUniversity",
+    "term/schema:EducationalOrganization",
+    "term/schema:EducationalOccupationalProgram",
+    "term/schema:Course",
+    "term/schema:Person",
+    "term/schema:EducationalOccupationalCredential",
+    "term/schema:Legislation",
+    "term/schema:Message",
+    "term/schema:RegisterAction",
+    "term/schema:actionStatus",
+    "term/schema:applicationDeadline",
+    "term/schema:numberOfCredits",
+    "term/schema:courseCode",
+    "term/schema:coursePrerequisites",
+    "term/schema:programPrerequisites",
+    "term/schema:identifier",
+    "term/schema:name",
+    "term/schema:affiliation",
+    "term/schema:text",
+    "term/schema:about",
+    "term/schema:citation"
+   ],
+   "about": [],
+   "note": "第1優先。適切な用語があれば必ずここから採る。"
+  },
+  {
+   "id": "layer/ccso",
+   "kind": "layer",
+   "label": "CCSO 層",
+   "members": [
+    "term/ccso:Student",
+    "term/ccso:UndergraduateStudent",
+    "term/ccso:ProgramofStudy",
+    "term/ccso:Course",
+    "term/ccso:University",
+    "term/ccso:School",
+    "term/ccso:enrolledIn",
+    "term/ccso:hasCompleted",
+    "term/ccso:hasRegistered",
+    "term/ccso:hasPrerequisite",
+    "term/ccso:creditsECTS",
+    "term/ccso:code"
+   ],
+   "about": [],
+   "note": "第2優先。schema.org が持たない学籍側の語彙を補う。"
+  },
+  {
+   "id": "layer/local",
+   "kind": "layer",
+   "label": "ローカル拡張層（urd:）",
+   "members": [
+    "term/urd:yearOfStudy",
+    "term/urd:earnedCredits",
+    "term/urd:registeredCredits",
+    "term/urd:annualCreditLimit",
+    "term/urd:requiredCourse",
+    "term/urd:minimumYearOfStudy",
+    "term/urd:minimumEarnedCredits",
+    "term/urd:evaluationDate",
+    "term/urd:notificationLevel",
+    "term/urd:courseCategory",
+    "term/urd:semester",
+    "term/urd:Rule",
+    "term/urd:DecisionResult",
+    "term/urd:Premise",
+    "term/urd:constrains",
+    "term/urd:basedOnLegislation",
+    "term/urd:hornClause",
+    "term/urd:status",
+    "term/urd:appliedRule",
+    "term/urd:usesTerm",
+    "term/urd:premise",
+    "term/urd:satisfied",
+    "term/urd:comparator",
+    "term/urd:actualValue",
+    "term/urd:expectedValue",
+    "term/urd:unmetCondition",
+    "term/urd:calculation",
+    "term/urd:decision",
+    "term/urd:question",
+    "term/urd:detectedIntent"
+   ],
+   "about": [],
+   "note": "第3優先。どちらにも無い概念だけ。近い用語は close-match で明示する。"
+  },
+  {
+   "id": "layer/reference",
+   "kind": "layer",
+   "label": "参照のみの語彙",
+   "members": [
+    "term/oloud:subjectRequires",
+    "term/oloud:subjectCredit",
+    "term/oloud:studyProgramme",
+    "term/oloud:degree",
+    "term/oloud:courseTerm"
+   ],
+   "about": [],
+   "note": "対応関係を示すためだけに登場する。本デモは使用しない。"
+  },
+  {
+   "id": "domain/all",
+   "kind": "domain",
+   "label": "大学業務の概念",
+   "members": [
+    "domain/organization",
+    "domain/catalog",
+    "domain/academic-record",
+    "domain/regulation",
+    "domain/decision"
+   ],
+   "about": []
+  },
+  {
+   "id": "domain/organization",
+   "kind": "domain",
+   "label": "組織",
+   "members": [
+    "concept/university",
+    "concept/faculty",
+    "concept/program",
+    "concept/credential"
+   ],
+   "about": []
+  },
+  {
+   "id": "domain/catalog",
+   "kind": "domain",
+   "label": "科目カタログ",
+   "members": [
+    "concept/course",
+    "concept/credits",
+    "concept/course-code",
+    "concept/required-course"
+   ],
+   "about": []
+  },
+  {
+   "id": "domain/academic-record",
+   "kind": "domain",
+   "label": "学籍",
+   "members": [
+    "concept/student",
+    "concept/enrollment",
+    "concept/completed-course",
+    "concept/registered-course",
+    "concept/registration-action",
+    "concept/year-of-study",
+    "concept/earned-credits"
+   ],
+   "about": [],
+   "note": "schema.org が語彙をほとんど持たない領域。CCSO で補完している。"
+  },
+  {
+   "id": "domain/regulation",
+   "kind": "domain",
+   "label": "規程とルール",
+   "members": [
+    "concept/legislation",
+    "concept/rule",
+    "concept/registration-deadline",
+    "concept/annual-credit-limit"
+   ],
+   "about": []
+  },
+  {
+   "id": "domain/decision",
+   "kind": "domain",
+   "label": "判定と通知",
+   "members": [
+    "concept/decision",
+    "concept/premise",
+    "concept/notification"
+   ],
+   "about": []
+  },
+  {
+   "id": "rule-group/institutional",
+   "kind": "rule-group",
+   "label": "制度ルール（1種別1件）",
+   "members": [
+    "rule-type/registration_deadline",
+    "rule-type/annual_credit_limit",
+    "rule-type/graduation_credit_requirement",
+    "rule-type/graduation_required_courses",
+    "rule-type/thesis_eligibility"
+   ],
+   "about": [],
+   "note": "対象ノードと根拠条文の指定が必須。"
+  },
+  {
+   "id": "rule-group/notification",
+   "kind": "rule-group",
+   "label": "個別通知ルール（複数可）",
+   "members": [
+    "rule-type/personalized_notification"
+   ],
+   "about": []
+  },
+  {
+   "id": "rationale/why-ccso",
+   "kind": "rationale",
+   "label": "なぜ学籍側を CCSO で補うのか",
+   "members": [],
+   "about": [
+    "domain/academic-record",
+    "term/schema:numberOfCredits",
+    "term/ccso:hasCompleted",
+    "term/ccso:hasRegistered",
+    "term/ccso:enrolledIn"
+   ],
+   "statement": "schema:numberOfCredits の domain は Course と EducationalOccupationalProgram だけで、 Person には付けられない。schema.org は科目カタログ・規程・通知の語彙は十分に持つ一方、 「誰が何を修得したか」という学籍側の語彙をほとんど持たない。CCSO はそこを埋め、 かつ CCSO 自身が schema:Organization と schema:EducationalOrganization を再利用しているため併用できる。",
+   "evidence": "schema.org 30.0 の定義と、配布物 ccso.owl の内容で確認（2026-09）。"
+  },
+  {
+   "id": "rationale/oloud-is-not-schema-org",
+   "kind": "rationale",
+   "label": "OLOUD・CCSO は schema.org の一部ではない",
+   "members": [],
+   "about": [
+    "layer/ccso",
+    "layer/reference"
+   ],
+   "statement": "どちらも大学領域の独立した語彙である。CCSO は schema.org の用語を直接再利用するため併用できるが、 OLOUD は AIISO / FOAF / Dublin Core の上に構築されており schema.org を使わない。 本デモは schema.org を土台に CCSO を組み合わせ、OLOUD については対応関係を示すに留める。",
+   "evidence": "CCSO は ccso.owl、OLOUD は Acta Polytechnica Hungarica 14(4), 2017 の記述で確認。 OLOUD の配布サーバーは 2026-09 時点で応答しない。"
+  },
+  {
+   "id": "rationale/derived-credits",
+   "kind": "rationale",
+   "label": "単位数はグラフに書かず、たどって求める",
+   "members": [],
+   "about": [
+    "term/urd:earnedCredits",
+    "term/urd:registeredCredits",
+    "term/ccso:hasCompleted",
+    "term/ccso:hasRegistered"
+   ],
+   "statement": "学生ノードに修得単位数の合計は書かない。ccso:hasCompleted / ccso:hasRegistered が指す科目の schema:numberOfCredits を合計して導出する。科目を1件足せば合計も判定も自動的に変わり、 「なぜその数値なのか」を科目まで遡って説明できる。"
+  },
+  {
+   "id": "rationale/required-course-is-not-prerequisite",
+   "kind": "rationale",
+   "label": "卒業必修科目に schema:programPrerequisites を使わない理由",
+   "members": [],
+   "about": [
+    "term/urd:requiredCourse",
+    "term/schema:programPrerequisites",
+    "term/ccso:hasPrerequisite"
+   ],
+   "statement": "schema:programPrerequisites は「課程に入るための前提」を指し、「修了に必要な科目」ではない。 意味が異なるため urd:requiredCourse を定義し、skos:closeMatch に留めて同一視しない。"
+  },
+  {
+   "id": "rationale/decision-vocabulary-is-local",
+   "kind": "rationale",
+   "label": "判定結果の語彙だけはローカルに定義する",
+   "members": [],
+   "about": [
+    "domain/decision",
+    "term/urd:DecisionResult",
+    "term/urd:Premise",
+    "term/urd:hornClause"
+   ],
+   "statement": "「規則に基づく判定とその根拠」を表す語彙は schema.org にも CCSO にも無い。 判定・前提・Horn節・適用ルールは urd: に定義し、schema.org の用語を意味を曲げて流用しない。"
+  }
+ ],
+ "edges": [
+  {
+   "id": "edge/uses/concept/university->term/schema:CollegeOrUniversity",
+   "source": "concept/university",
+   "target": "term/schema:CollegeOrUniversity",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/university->term/ccso:University",
+   "source": "concept/university",
+   "target": "term/ccso:University",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/faculty->term/schema:EducationalOrganization",
+   "source": "concept/faculty",
+   "target": "term/schema:EducationalOrganization",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/faculty->term/ccso:School",
+   "source": "concept/faculty",
+   "target": "term/ccso:School",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/program->term/schema:EducationalOccupationalProgram",
+   "source": "concept/program",
+   "target": "term/schema:EducationalOccupationalProgram",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/program->term/ccso:ProgramofStudy",
+   "source": "concept/program",
+   "target": "term/ccso:ProgramofStudy",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/program->term/oloud:studyProgramme",
+   "source": "concept/program",
+   "target": "term/oloud:studyProgramme",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/credential->term/schema:EducationalOccupationalCredential",
+   "source": "concept/credential",
+   "target": "term/schema:EducationalOccupationalCredential",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/credential->term/oloud:degree",
+   "source": "concept/credential",
+   "target": "term/oloud:degree",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/course->term/schema:Course",
+   "source": "concept/course",
+   "target": "term/schema:Course",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/course->term/ccso:Course",
+   "source": "concept/course",
+   "target": "term/ccso:Course",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/credits->term/schema:numberOfCredits",
+   "source": "concept/credits",
+   "target": "term/schema:numberOfCredits",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/credits->term/ccso:creditsECTS",
+   "source": "concept/credits",
+   "target": "term/ccso:creditsECTS",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/credits->term/oloud:subjectCredit",
+   "source": "concept/credits",
+   "target": "term/oloud:subjectCredit",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/course-code->term/schema:courseCode",
+   "source": "concept/course-code",
+   "target": "term/schema:courseCode",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/course-code->term/ccso:code",
+   "source": "concept/course-code",
+   "target": "term/ccso:code",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/required-course->term/urd:requiredCourse",
+   "source": "concept/required-course",
+   "target": "term/urd:requiredCourse",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/required-course->term/schema:programPrerequisites",
+   "source": "concept/required-course",
+   "target": "term/schema:programPrerequisites",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/required-course->term/ccso:hasPrerequisite",
+   "source": "concept/required-course",
+   "target": "term/ccso:hasPrerequisite",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/required-course->term/oloud:subjectRequires",
+   "source": "concept/required-course",
+   "target": "term/oloud:subjectRequires",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/student->term/schema:Person",
+   "source": "concept/student",
+   "target": "term/schema:Person",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/student->term/ccso:UndergraduateStudent",
+   "source": "concept/student",
+   "target": "term/ccso:UndergraduateStudent",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/alternative/concept/student->term/ccso:Student",
+   "source": "concept/student",
+   "target": "term/ccso:Student",
+   "kind": "alternative",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/enrollment->term/ccso:enrolledIn",
+   "source": "concept/enrollment",
+   "target": "term/ccso:enrolledIn",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/completed-course->term/ccso:hasCompleted",
+   "source": "concept/completed-course",
+   "target": "term/ccso:hasCompleted",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/registered-course->term/ccso:hasRegistered",
+   "source": "concept/registered-course",
+   "target": "term/ccso:hasRegistered",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/registration-action->term/schema:RegisterAction",
+   "source": "concept/registration-action",
+   "target": "term/schema:RegisterAction",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/registration-action->term/schema:actionStatus",
+   "source": "concept/registration-action",
+   "target": "term/schema:actionStatus",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/year-of-study->term/urd:yearOfStudy",
+   "source": "concept/year-of-study",
+   "target": "term/urd:yearOfStudy",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/earned-credits->term/urd:earnedCredits",
+   "source": "concept/earned-credits",
+   "target": "term/urd:earnedCredits",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/derived-from/term/urd:earnedCredits->term/ccso:hasCompleted",
+   "source": "term/urd:earnedCredits",
+   "target": "term/ccso:hasCompleted",
+   "kind": "derived-from",
+   "label": "修得科目をたどって",
+   "derived": false
+  },
+  {
+   "id": "edge/derived-from/term/urd:earnedCredits->term/schema:numberOfCredits",
+   "source": "term/urd:earnedCredits",
+   "target": "term/schema:numberOfCredits",
+   "kind": "derived-from",
+   "label": "単位数を合計",
+   "derived": false
+  },
+  {
+   "id": "edge/derived-from/term/urd:registeredCredits->term/ccso:hasRegistered",
+   "source": "term/urd:registeredCredits",
+   "target": "term/ccso:hasRegistered",
+   "kind": "derived-from",
+   "derived": false
+  },
+  {
+   "id": "edge/derived-from/term/urd:registeredCredits->term/schema:numberOfCredits",
+   "source": "term/urd:registeredCredits",
+   "target": "term/schema:numberOfCredits",
+   "kind": "derived-from",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/legislation->term/schema:Legislation",
+   "source": "concept/legislation",
+   "target": "term/schema:Legislation",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/rule->term/urd:Rule",
+   "source": "concept/rule",
+   "target": "term/urd:Rule",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/registration-deadline->term/schema:applicationDeadline",
+   "source": "concept/registration-deadline",
+   "target": "term/schema:applicationDeadline",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/annual-credit-limit->term/urd:annualCreditLimit",
+   "source": "concept/annual-credit-limit",
+   "target": "term/urd:annualCreditLimit",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/has-property/term/urd:Rule->term/urd:constrains",
+   "source": "term/urd:Rule",
+   "target": "term/urd:constrains",
+   "kind": "has-property",
+   "derived": false
+  },
+  {
+   "id": "edge/has-property/term/urd:Rule->term/urd:basedOnLegislation",
+   "source": "term/urd:Rule",
+   "target": "term/urd:basedOnLegislation",
+   "kind": "has-property",
+   "derived": false
+  },
+  {
+   "id": "edge/range/term/urd:basedOnLegislation->term/schema:Legislation",
+   "source": "term/urd:basedOnLegislation",
+   "target": "term/schema:Legislation",
+   "kind": "range",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/decision->term/urd:DecisionResult",
+   "source": "concept/decision",
+   "target": "term/urd:DecisionResult",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/premise->term/urd:Premise",
+   "source": "concept/premise",
+   "target": "term/urd:Premise",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/uses/concept/notification->term/schema:Message",
+   "source": "concept/notification",
+   "target": "term/schema:Message",
+   "kind": "uses",
+   "derived": false
+  },
+  {
+   "id": "edge/has-property/term/urd:DecisionResult->term/urd:premise",
+   "source": "term/urd:DecisionResult",
+   "target": "term/urd:premise",
+   "kind": "has-property",
+   "derived": false
+  },
+  {
+   "id": "edge/has-property/term/urd:DecisionResult->term/urd:hornClause",
+   "source": "term/urd:DecisionResult",
+   "target": "term/urd:hornClause",
+   "kind": "has-property",
+   "derived": false
+  },
+  {
+   "id": "edge/has-property/term/urd:DecisionResult->term/urd:usesTerm",
+   "source": "term/urd:DecisionResult",
+   "target": "term/urd:usesTerm",
+   "kind": "has-property",
+   "derived": false
+  },
+  {
+   "id": "edge/has-property/term/urd:DecisionResult->term/urd:status",
+   "source": "term/urd:DecisionResult",
+   "target": "term/urd:status",
+   "kind": "has-property",
+   "derived": false
+  },
+  {
+   "id": "edge/range/term/urd:premise->term/urd:Premise",
+   "source": "term/urd:premise",
+   "target": "term/urd:Premise",
+   "kind": "range",
+   "derived": false
+  },
+  {
+   "id": "edge/has-property/term/schema:Message->term/urd:decision",
+   "source": "term/schema:Message",
+   "target": "term/urd:decision",
+   "kind": "has-property",
+   "derived": false
+  },
+  {
+   "id": "edge/defined-in/vocabulary/schema-org->layer/schema-org",
+   "source": "vocabulary/schema-org",
+   "target": "layer/schema-org",
+   "kind": "defined-in",
+   "derived": false
+  },
+  {
+   "id": "edge/defined-in/vocabulary/ccso->layer/ccso",
+   "source": "vocabulary/ccso",
+   "target": "layer/ccso",
+   "kind": "defined-in",
+   "derived": false
+  },
+  {
+   "id": "edge/defined-in/vocabulary/oloud->layer/reference",
+   "source": "vocabulary/oloud",
+   "target": "layer/reference",
+   "kind": "defined-in",
+   "derived": false
+  },
+  {
+   "id": "edge/defined-in/vocabulary/local->layer/local",
+   "source": "vocabulary/local",
+   "target": "layer/local",
+   "kind": "defined-in",
+   "derived": false
+  },
+  {
+   "id": "edge/reuses/vocabulary/ccso->vocabulary/schema-org",
+   "source": "vocabulary/ccso",
+   "target": "vocabulary/schema-org",
+   "kind": "reuses",
+   "label": "CCSO は schema:Organization を再利用",
+   "derived": false
+  },
+  {
+   "id": "edge/close-match/term/urd:requiredCourse->term/schema:programPrerequisites",
+   "source": "term/urd:requiredCourse",
+   "target": "term/schema:programPrerequisites",
+   "kind": "close-match",
+   "label": "skos:closeMatch",
+   "derived": true
+  },
+  {
+   "id": "edge/close-match/term/urd:requiredCourse->term/ccso:hasPrerequisite",
+   "source": "term/urd:requiredCourse",
+   "target": "term/ccso:hasPrerequisite",
+   "kind": "close-match",
+   "label": "skos:closeMatch",
+   "derived": true
+  },
+  {
+   "id": "edge/close-match/term/urd:minimumEarnedCredits->term/schema:coursePrerequisites",
+   "source": "term/urd:minimumEarnedCredits",
+   "target": "term/schema:coursePrerequisites",
+   "kind": "close-match",
+   "label": "skos:closeMatch",
+   "derived": true
+  },
+  {
+   "id": "edge/close-match/term/urd:courseCategory->term/schema:about",
+   "source": "term/urd:courseCategory",
+   "target": "term/schema:about",
+   "kind": "close-match",
+   "label": "skos:closeMatch",
+   "derived": true
+  },
+  {
+   "id": "edge/close-match/term/urd:semester->term/oloud:courseTerm",
+   "source": "term/urd:semester",
+   "target": "term/oloud:courseTerm",
+   "kind": "close-match",
+   "label": "skos:closeMatch",
+   "derived": true
+  },
+  {
+   "id": "edge/close-match/term/urd:basedOnLegislation->term/schema:citation",
+   "source": "term/urd:basedOnLegislation",
+   "target": "term/schema:citation",
+   "kind": "close-match",
+   "label": "skos:closeMatch",
+   "derived": true
+  },
+  {
+   "id": "edge/constrains/rule-type/registration_deadline->term/schema:EducationalOccupationalProgram",
+   "source": "rule-type/registration_deadline",
+   "target": "term/schema:EducationalOccupationalProgram",
+   "kind": "constrains",
+   "label": "制約するクラス",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/registration_deadline->term/schema:applicationDeadline",
+   "source": "rule-type/registration_deadline",
+   "target": "term/schema:applicationDeadline",
+   "kind": "sets",
+   "label": "deadline",
+   "derived": true
+  },
+  {
+   "id": "edge/reads/rule-type/registration_deadline->term/urd:evaluationDate",
+   "source": "rule-type/registration_deadline",
+   "target": "term/urd:evaluationDate",
+   "kind": "reads",
+   "derived": true
+  },
+  {
+   "id": "edge/constrains/rule-type/annual_credit_limit->term/schema:EducationalOccupationalProgram",
+   "source": "rule-type/annual_credit_limit",
+   "target": "term/schema:EducationalOccupationalProgram",
+   "kind": "constrains",
+   "label": "制約するクラス",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/annual_credit_limit->term/urd:annualCreditLimit",
+   "source": "rule-type/annual_credit_limit",
+   "target": "term/urd:annualCreditLimit",
+   "kind": "sets",
+   "label": "max_credits",
+   "derived": true
+  },
+  {
+   "id": "edge/reads/rule-type/annual_credit_limit->term/ccso:hasRegistered",
+   "source": "rule-type/annual_credit_limit",
+   "target": "term/ccso:hasRegistered",
+   "kind": "reads",
+   "derived": true
+  },
+  {
+   "id": "edge/reads/rule-type/annual_credit_limit->term/schema:numberOfCredits",
+   "source": "rule-type/annual_credit_limit",
+   "target": "term/schema:numberOfCredits",
+   "kind": "reads",
+   "derived": true
+  },
+  {
+   "id": "edge/constrains/rule-type/graduation_credit_requirement->term/schema:EducationalOccupationalProgram",
+   "source": "rule-type/graduation_credit_requirement",
+   "target": "term/schema:EducationalOccupationalProgram",
+   "kind": "constrains",
+   "label": "制約するクラス",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/graduation_credit_requirement->term/schema:numberOfCredits",
+   "source": "rule-type/graduation_credit_requirement",
+   "target": "term/schema:numberOfCredits",
+   "kind": "sets",
+   "label": "required_credits",
+   "derived": true
+  },
+  {
+   "id": "edge/reads/rule-type/graduation_credit_requirement->term/urd:earnedCredits",
+   "source": "rule-type/graduation_credit_requirement",
+   "target": "term/urd:earnedCredits",
+   "kind": "reads",
+   "derived": true
+  },
+  {
+   "id": "edge/constrains/rule-type/graduation_required_courses->term/schema:EducationalOccupationalProgram",
+   "source": "rule-type/graduation_required_courses",
+   "target": "term/schema:EducationalOccupationalProgram",
+   "kind": "constrains",
+   "label": "制約するクラス",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/graduation_required_courses->term/urd:requiredCourse",
+   "source": "rule-type/graduation_required_courses",
+   "target": "term/urd:requiredCourse",
+   "kind": "sets",
+   "label": "required_courses",
+   "derived": true
+  },
+  {
+   "id": "edge/reads/rule-type/graduation_required_courses->term/ccso:hasCompleted",
+   "source": "rule-type/graduation_required_courses",
+   "target": "term/ccso:hasCompleted",
+   "kind": "reads",
+   "derived": true
+  },
+  {
+   "id": "edge/constrains/rule-type/thesis_eligibility->term/schema:Course",
+   "source": "rule-type/thesis_eligibility",
+   "target": "term/schema:Course",
+   "kind": "constrains",
+   "label": "制約するクラス",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/thesis_eligibility->term/schema:coursePrerequisites",
+   "source": "rule-type/thesis_eligibility",
+   "target": "term/schema:coursePrerequisites",
+   "kind": "sets",
+   "label": "required_courses",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/thesis_eligibility->term/urd:minimumYearOfStudy",
+   "source": "rule-type/thesis_eligibility",
+   "target": "term/urd:minimumYearOfStudy",
+   "kind": "sets",
+   "label": "minimum_year_of_study",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/thesis_eligibility->term/urd:minimumEarnedCredits",
+   "source": "rule-type/thesis_eligibility",
+   "target": "term/urd:minimumEarnedCredits",
+   "kind": "sets",
+   "label": "minimum_earned_credits",
+   "derived": true
+  },
+  {
+   "id": "edge/reads/rule-type/thesis_eligibility->term/urd:yearOfStudy",
+   "source": "rule-type/thesis_eligibility",
+   "target": "term/urd:yearOfStudy",
+   "kind": "reads",
+   "derived": true
+  },
+  {
+   "id": "edge/reads/rule-type/thesis_eligibility->term/urd:earnedCredits",
+   "source": "rule-type/thesis_eligibility",
+   "target": "term/urd:earnedCredits",
+   "kind": "reads",
+   "derived": true
+  },
+  {
+   "id": "edge/reads/rule-type/thesis_eligibility->term/ccso:hasCompleted",
+   "source": "rule-type/thesis_eligibility",
+   "target": "term/ccso:hasCompleted",
+   "kind": "reads",
+   "derived": true
+  },
+  {
+   "id": "edge/constrains/rule-type/personalized_notification->term/schema:Person",
+   "source": "rule-type/personalized_notification",
+   "target": "term/schema:Person",
+   "kind": "constrains",
+   "label": "制約するクラス",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/personalized_notification->term/schema:text",
+   "source": "rule-type/personalized_notification",
+   "target": "term/schema:text",
+   "kind": "sets",
+   "label": "message",
+   "derived": true
+  },
+  {
+   "id": "edge/sets/rule-type/personalized_notification->term/urd:notificationLevel",
+   "source": "rule-type/personalized_notification",
+   "target": "term/urd:notificationLevel",
+   "kind": "sets",
+   "label": "level",
+   "derived": true
+  }
+ ],
+ "kinds": {
+  "node": [
+   "concept",
+   "rule-type",
+   "term",
+   "vocabulary"
+  ],
+  "hypernode": [
+   "domain",
+   "layer",
+   "rationale",
+   "rule-group"
+  ],
+  "edge": [
+   "about",
+   "alternative",
+   "close-match",
+   "constrains",
+   "defined-in",
+   "derived-from",
+   "has-property",
+   "range",
+   "reads",
+   "reuses",
+   "sets",
+   "uses"
+  ]
+ }
+}
+</script>
+<!-- END ontology-graph -->
+
+<!--
+  graph-engine … グラフ文書のモデル・導出・検証・書き出し。DOMには触れない。
+                 tests/js/check_graph_mirror.mjs が Node.js で実行し、
+                 src/graph_document.py と同じ結果になるかを検証する。
+  graph-view   … 力学レイアウトと SVG 描画、編集UI。
+-->
+<script id="graph-engine">
+"use strict";
+
+const EMBEDDED = JSON.parse(document.getElementById("ontology-graph").textContent);
+
+const NODE_KINDS = ["concept", "term", "rule-type", "vocabulary"];
+const HYPERNODE_KINDS = ["layer", "domain", "rule-group", "rationale"];
+const EDGE_KINDS = ["uses", "alternative", "close-match", "derived-from", "defined-in",
+  "has-property", "range", "reuses", "constrains", "sets", "reads", "about"];
+
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+/** グラフ文書。導出エッジは保持せず、必要なときに作り直す。 */
+class GraphDoc {
+  constructor(raw) {
+    this.meta = clone(raw.meta || {});
+    this.namespaces = clone(raw.namespaces || []);
+    this.nodes = clone(raw.nodes || []);
+    this.hypernodes = clone(raw.hypernodes || []);
+    // 埋め込みデータには導出エッジも入っているので、明示エッジだけを残す。
+    this.edges = clone(raw.edges || []).filter((edge) => !edge.derived);
+  }
+
+  get all() { return [...this.nodes, ...this.hypernodes]; }
+
+  byId(id) { return this.all.find((item) => item.id === id) || null; }
+
+  isHyper(id) { return this.hypernodes.some((item) => item.id === id); }
+
+  termByCurie(curie) {
+    return this.nodes.find((node) => node.kind === "term" && node.curie === curie) || null;
+  }
+
+  prefixOf(curie) { return String(curie).split(":")[0]; }
+
+  namespace(prefix) { return this.namespaces.find((item) => item.prefix === prefix) || null; }
+
+  /** rule_terms / evaluated_terms / close_match から一意に決まるエッジを作る。 */
+  derivedEdges() {
+    const edges = [];
+    const add = (source, curie, kind, label) => {
+      const target = this.termByCurie(curie);
+      if (!target) return;
+      edges.push({
+        id: `edge/${kind}/${source}->${target.id}`,
+        source, target: target.id, kind, label, derived: true,
+      });
+    };
+    for (const node of this.nodes) {
+      if (node.kind === "rule-type") {
+        if (node.subject_class) add(node.id, node.subject_class, "constrains", "制約するクラス");
+        for (const [key, curie] of Object.entries(node.rule_terms || {})) add(node.id, curie, "sets", key);
+        for (const curie of node.evaluated_terms || []) add(node.id, curie, "reads", null);
+      }
+      if (node.kind === "term") {
+        for (const curie of node.close_match || []) add(node.id, curie, "close-match", "skos:closeMatch");
+      }
+    }
+    return edges;
+  }
+
+  allEdges() { return [...this.edges, ...this.derivedEdges()]; }
+
+  /** hypernode の入れ子をたどって、含まれる全メンバーIDを返す。 */
+  descendants(id) {
+    const seen = [];
+    const stack = [...((this.byId(id) || {}).members || [])];
+    while (stack.length) {
+      const current = stack.shift();
+      if (seen.includes(current)) continue;
+      seen.push(current);
+      if (this.isHyper(current)) stack.push(...((this.byId(current) || {}).members || []));
+    }
+    return seen;
+  }
+
+  parentsOf(id) { return this.hypernodes.filter((h) => (h.members || []).includes(id)).map((h) => h.id); }
+
+  /** 入れ子の根になっている hypernode。 */
+  roots() { return this.hypernodes.filter((h) => this.parentsOf(h.id).length === 0); }
+
+  /** concept → term の uses / alternative から語彙対応表を導出する。 */
+  crosswalk() {
+    const rows = [];
+    const edges = this.allEdges();
+    for (const concept of this.nodes.filter((n) => n.kind === "concept")) {
+      const used = [];
+      const alternatives = {};
+      for (const edge of edges) {
+        if (edge.source !== concept.id) continue;
+        const target = this.byId(edge.target);
+        if (!target || !target.curie) continue;
+        const prefix = this.prefixOf(target.curie);
+        if (edge.kind === "uses") used.push(target.curie);
+        else if (edge.kind === "alternative") (alternatives[prefix] ||= []).push(target.curie);
+      }
+      if (!used.length) continue;
+      const cell = (prefix) => {
+        const own = used.filter((curie) => curie.startsWith(prefix + ":"));
+        if (own.length) return own.join(" ＋ ");
+        if (alternatives[prefix]) return alternatives[prefix].join(" / ");
+        return "（該当なし）";
+      };
+      rows.push({
+        concept: concept.label, concept_id: concept.id, demo: used.join(" ＋ "),
+        schema_org: cell("schema"), ccso: cell("ccso"), oloud: cell("oloud"),
+      });
+    }
+    return rows;
+  }
+
+  /** 参照整合性・kind・入れ子の循環を検査し、問題の一覧を返す。 */
+  validate() {
+    const problems = [];
+    const ids = new Set();
+    for (const item of this.all) {
+      if (ids.has(item.id)) problems.push(`id が重複しています: ${item.id}`);
+      ids.add(item.id);
+      if (!item.label) problems.push(`label がありません: ${item.id}`);
+    }
+    const prefixes = new Set(this.namespaces.map((n) => n.prefix));
+    for (const node of this.nodes) {
+      if (!NODE_KINDS.includes(node.kind)) problems.push(`未知の node kind: ${node.kind}（${node.id}）`);
+      if (node.curie) {
+        if (!prefixes.has(this.prefixOf(node.curie))) problems.push(`未登録の接頭辞: ${node.curie}`);
+        if (!["class", "property"].includes(node.term_kind)) problems.push(`term_kind が不正: ${node.id}`);
+      }
+      if (node.kind === "term" && !node.curie) problems.push(`term に curie がありません: ${node.id}`);
+      for (const curie of node.close_match || []) {
+        if (!this.termByCurie(curie)) problems.push(`${node.id} の close_match の相手がありません: ${curie}`);
+      }
+    }
+    for (const hyper of this.hypernodes) {
+      if (!HYPERNODE_KINDS.includes(hyper.kind)) problems.push(`未知の hypernode kind: ${hyper.kind}（${hyper.id}）`);
+      for (const member of hyper.members || []) {
+        if (!ids.has(member)) problems.push(`${hyper.id} のメンバーがありません: ${member}`);
+      }
+      const edgeIds = new Set(this.allEdges().map((e) => e.id));
+      for (const target of hyper.about || []) {
+        if (!ids.has(target) && !edgeIds.has(target)) problems.push(`${hyper.id} の about がありません: ${target}`);
+      }
+      if (hyper.kind === "rationale" && !hyper.statement) problems.push(`rationale に statement が必要: ${hyper.id}`);
+    }
+    for (const edge of this.allEdges()) {
+      if (!EDGE_KINDS.includes(edge.kind)) problems.push(`未知の edge kind: ${edge.kind}（${edge.id}）`);
+      for (const endpoint of [edge.source, edge.target]) {
+        if (!ids.has(endpoint)) problems.push(`エッジの端点がありません: ${endpoint}`);
+      }
+    }
+    problems.push(...this.cycleProblems());
+    return problems;
+  }
+
+  cycleProblems() {
+    const problems = [];
+    const state = {};
+    const walk = (id, trail) => {
+      if (state[id] === 1) { problems.push("hypernode の入れ子が循環しています: " + [...trail, id].join(" → ")); return; }
+      if (state[id] === 2) return;
+      state[id] = 1;
+      for (const member of (this.byId(id) || {}).members || []) {
+        if (this.isHyper(member)) walk(member, [...trail, id]);
+      }
+      state[id] = 2;
+    };
+    for (const hyper of this.hypernodes) walk(hyper.id, []);
+    return problems;
+  }
+
+  /** 書き出し用の素の構造（導出エッジは含めない）。 */
+  toDocument() {
+    return {
+      meta: this.meta,
+      namespaces: this.namespaces,
+      hypernodes: this.hypernodes,
+      nodes: this.nodes,
+      edges: this.edges.map((edge) => {
+        const { derived, ...rest } = edge;
+        return rest;
+      }),
+    };
+  }
+}
+
+/** data/ontology_graph.yaml と同じ書き方の YAML を出力する。 */
+function toYaml(value, indent = 0) {
+  const pad = "  ".repeat(indent);
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  if (typeof value === "string") return yamlScalar(value, indent);
+  if (Array.isArray(value)) {
+    if (!value.length) return "[]";
+    return "\n" + value.map((item) => {
+      // 要素がオブジェクトなら "- " の直後に最初のキーを続ける（YAMLの慣習）。
+      const body = toYaml(item, indent + 1);
+      return body.startsWith("\n")
+        ? `${pad}-${indentBlock(item, indent + 1)}`
+        : `${pad}- ${body.trimStart()}`;
+    }).join("\n");
+  }
+  if (typeof value === "object") {
+    const entries = Object.entries(value).filter(([, v]) => v !== undefined);
+    if (!entries.length) return "{}";
+    return "\n" + entries.map(([key, item]) => {
+      const body = toYaml(item, indent + 1);
+      return body.startsWith("\n") ? `${pad}${key}:${body}` : `${pad}${key}: ${body}`;
+    }).join("\n");
+  }
+  return String(value);
+}
+
+function indentBlock(item, indent) {
+  // 配列要素がオブジェクトのとき、"- " の後ろに続けて書く。
+  const pad = "  ".repeat(indent);
+  const entries = Object.entries(item).filter(([, v]) => v !== undefined);
+  return entries.map(([key, value], index) => {
+    const body = toYaml(value, indent + 1);
+    const line = body.startsWith("\n") ? `${key}:${body}` : `${key}: ${body}`;
+    return index === 0 ? ` ${line}` : `\n${pad}${line}`;
+  }).join("");
+}
+
+function yamlScalar(text, indent) {
+  if (text.includes("\n")) {
+    const pad = "  ".repeat(indent + 1);
+    return ">-\n" + text.split("\n").map((line) => pad + line.trim()).join("\n");
+  }
+  const needsQuote = /^[\s>|*&!%@`{}\[\],#-]|[:#]\s|\s$|^$/.test(text)
+    || /^(true|false|null|yes|no|on|off|~)$/i.test(text)
+    || /^-?\d+(\.\d+)?$/.test(text)
+    || text.includes(": ")
+    || text.endsWith(":");
+  return needsQuote ? '"' + text.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"' : text;
+}
+
+// engine ここまで。以降は描画と編集UI。
+</script>
+
+<script id="graph-view">
+"use strict";
+
+const STORAGE_KEY = "university_ontology_graph";
+const $ = (selector) => document.querySelector(selector);
+const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const PALETTE = {
+  concept: "#4a4fb4",
+  "rule-type": "#8a4bb0",
+  vocabulary: "#445566",
+  schema: "#2e6db4",
+  ccso: "#1b8f6b",
+  urd: "#b4682e",
+  urdi: "#b4682e",
+  oloud: "#7a8794",
+  fallback: "#7a8794",
+};
+
+const HYPER_COLOR = {
+  layer: "#2e6db4",
+  domain: "#1b8f6b",
+  "rule-group": "#8a4bb0",
+  rationale: "#b26a00",
+};
+
+const EDGE_STYLE = {
+  uses: { color: "#2e6db4", width: 1.8 },
+  alternative: { color: "#9aa8b6", width: 1.1, dash: "4 3" },
+  "close-match": { color: "#b26a00", width: 1.2, dash: "2 3" },
+  "derived-from": { color: "#1b8f6b", width: 1.5, dash: "6 3" },
+  "defined-in": { color: "#7a8794", width: 1.1 },
+  "has-property": { color: "#6a7686", width: 1.2 },
+  range: { color: "#6a7686", width: 1.1, dash: "1 3" },
+  reuses: { color: "#8a4bb0", width: 1.6 },
+  constrains: { color: "#8a4bb0", width: 1.5 },
+  sets: { color: "#b4682e", width: 1.2 },
+  reads: { color: "#5b6773", width: 1.0, dash: "3 3" },
+  about: { color: "#b26a00", width: 1.0, dash: "1 4" },
+};
+
+let doc = loadDoc();
+let selection = null;              // {type: "node"|"hypernode"|"edge", id}
+let collapsed = new Set();
+let positions = new Map();         // id -> {x, y, pinned}
+let view = { x: 0, y: 0, k: 1 };
+let searchText = "";
+
+function loadDoc() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return new GraphDoc(JSON.parse(stored));
+  } catch (error) { /* 使えない環境では既定値 */ }
+  return new GraphDoc(EMBEDDED);
+}
+
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(doc.toDocument())); } catch (error) { /* 無視 */ }
+}
+
+function isEdited() {
+  try { return !!localStorage.getItem(STORAGE_KEY); } catch (error) { return false; }
+}
+
+function colorOf(item) {
+  if (item.curie) return PALETTE[doc.prefixOf(item.curie)] || PALETTE.fallback;
+  return PALETTE[item.kind] || PALETTE.fallback;
+}
+
+// --- 表示対象の決定 ---------------------------------------------------------
+
+function grouping() { return $("#grouping").value; }
+
+function activeHypernodes() {
+  const mode = grouping();
+  const showRationale = $("#show-rationale").checked;
+  return doc.hypernodes.filter((hyper) => {
+    if (hyper.kind === "rationale") return showRationale;
+    return mode !== "none" && hyper.kind === mode;
+  });
+}
+
+function visibleGraph() {
+  const hypers = activeHypernodes();
+  const collapsedActive = hypers.filter((hyper) => collapsed.has(hyper.id));
+  const hidden = new Set();
+  for (const hyper of collapsedActive) for (const id of doc.descendants(hyper.id)) hidden.add(id);
+
+  const nodes = doc.nodes.filter((node) => !hidden.has(node.id));
+  const hyperNodesShown = hypers.filter((hyper) => !hidden.has(hyper.id));
+  // 折りたたまれた hypernode は、それ自体を1つのノードとして描く。
+  const collapsedShown = collapsedActive.filter((hyper) => !hidden.has(hyper.id));
+
+  const representative = (id) => {
+    if (!hidden.has(id)) return id;
+    for (const hyper of collapsedShown) {
+      if (doc.descendants(hyper.id).includes(id)) return hyper.id;
+    }
+    return null;
+  };
+
+  const showDerived = $("#show-derived").checked;
+  const seen = new Set();
+  const edges = [];
+  for (const edge of doc.allEdges()) {
+    if (edge.derived && !showDerived) continue;
+    const source = representative(edge.source);
+    const target = representative(edge.target);
+    if (!source || !target || source === target) continue;
+    const key = `${source}|${target}|${edge.kind}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    edges.push({ ...edge, source, target });
+  }
+
+  // rationale の about を点線エッジとして描く
+  if ($("#show-rationale").checked) {
+    for (const hyper of doc.hypernodes.filter((h) => h.kind === "rationale")) {
+      for (const target of hyper.about || []) {
+        const to = representative(target);
+        if (!to || to === hyper.id) continue;
+        const key = `${hyper.id}|${to}|about`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges.push({ id: `about/${hyper.id}->${to}`, source: hyper.id, target: to, kind: "about", meta: true });
+      }
+    }
+  }
+
+  const rationale = $("#show-rationale").checked
+    ? doc.hypernodes.filter((hyper) => hyper.kind === "rationale" && !hidden.has(hyper.id))
+    : [];
+  // メタ知識は members ではなく about で対象を指すことが多い。members を持たない
+  // ものは囲む対象が無いので、注釈ノードとして描いて about を点線で結ぶ。
+  const annotations = rationale.filter((hyper) => !(hyper.members || []).length);
+  const rationaleBoxes = rationale.filter(
+    (hyper) => (hyper.members || []).length && !collapsed.has(hyper.id));
+
+  const drawnNodes = [
+    ...nodes,
+    ...collapsedShown.map((hyper) => ({ ...hyper, collapsedHyper: true })),
+    ...annotations.map((hyper) => ({ ...hyper, metaNode: true })),
+  ];
+  const containers = hyperNodesShown.filter(
+    (hyper) => !collapsed.has(hyper.id) && hyper.kind !== "rationale");
+
+  return { nodes: drawnNodes, edges, containers, rationale: rationaleBoxes };
+}
+
+// --- 力学レイアウト ---------------------------------------------------------
+
+function runLayout(graph, iterations = 260) {
+  const width = 900;
+  const height = 620;
+  const nodes = graph.nodes;
+  const index = new Map(nodes.map((node, i) => [node.id, i]));
+
+  const state = nodes.map((node, i) => {
+    const stored = positions.get(node.id);
+    const angle = (i / nodes.length) * Math.PI * 2;
+    return {
+      id: node.id,
+      x: stored ? stored.x : width / 2 + Math.cos(angle) * (180 + (i % 7) * 26),
+      y: stored ? stored.y : height / 2 + Math.sin(angle) * (150 + (i % 5) * 24),
+      vx: 0, vy: 0,
+      pinned: stored ? !!stored.pinned : false,
+    };
+  });
+
+  // 同じ hypernode に属するノードは近づける
+  const groups = new Map();
+  for (const hyper of [...graph.containers, ...graph.rationale]) {
+    const members = doc.descendants(hyper.id).filter((id) => index.has(id));
+    if (members.length) groups.set(hyper.id, members);
+  }
+
+  const links = graph.edges
+    .map((edge) => [index.get(edge.source), index.get(edge.target)])
+    .filter(([a, b]) => a !== undefined && b !== undefined);
+
+  for (let step = 0; step < iterations; step += 1) {
+    const cooling = 1 - step / iterations;
+    for (let i = 0; i < state.length; i += 1) {
+      for (let j = i + 1; j < state.length; j += 1) {
+        const dx = state[j].x - state[i].x;
+        const dy = state[j].y - state[i].y;
+        const distance = Math.max(Math.hypot(dx, dy), 12);
+        const force = 5200 / (distance * distance);
+        const fx = (dx / distance) * force;
+        const fy = (dy / distance) * force;
+        state[i].vx -= fx; state[i].vy -= fy;
+        state[j].vx += fx; state[j].vy += fy;
+      }
+    }
+    for (const [a, b] of links) {
+      const dx = state[b].x - state[a].x;
+      const dy = state[b].y - state[a].y;
+      const distance = Math.max(Math.hypot(dx, dy), 1);
+      const force = (distance - 132) * 0.012;
+      const fx = (dx / distance) * force;
+      const fy = (dy / distance) * force;
+      state[a].vx += fx; state[a].vy += fy;
+      state[b].vx -= fx; state[b].vy -= fy;
+    }
+    for (const members of groups.values()) {
+      let cx = 0; let cy = 0;
+      for (const id of members) { cx += state[index.get(id)].x; cy += state[index.get(id)].y; }
+      cx /= members.length; cy /= members.length;
+      for (const id of members) {
+        const item = state[index.get(id)];
+        item.vx += (cx - item.x) * 0.035;
+        item.vy += (cy - item.y) * 0.035;
+      }
+    }
+    for (const item of state) {
+      item.vx += (width / 2 - item.x) * 0.0018;
+      item.vy += (height / 2 - item.y) * 0.0018;
+      if (item.pinned) { item.vx = 0; item.vy = 0; continue; }
+      item.x += Math.max(-22, Math.min(22, item.vx)) * cooling;
+      item.y += Math.max(-22, Math.min(22, item.vy)) * cooling;
+      item.vx *= 0.72; item.vy *= 0.72;
+    }
+  }
+
+  for (const item of state) positions.set(item.id, { x: item.x, y: item.y, pinned: item.pinned });
+}
+
+// --- SVG 描画 ---------------------------------------------------------------
+
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, text) => {
+  const node = document.createElementNS(NS, tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value !== null && value !== undefined) node.setAttribute(key, value);
+  }
+  if (text !== undefined) node.textContent = text;
+  return node;
+};
+
+const NODE_W = 132;
+const NODE_H = 34;
+
+function nodeSize(item) {
+  if (item.collapsedHyper) return { w: 160, h: 40 };
+  if (item.metaNode) return { w: 168, h: 38 };
+  return { w: NODE_W, h: NODE_H };
+}
+
+function matches(item) {
+  if (!searchText) return true;
+  const haystack = `${item.label} ${item.curie || ""} ${item.id}`.toLowerCase();
+  return haystack.includes(searchText);
+}
+
+function render() {
+  const graph = visibleGraph();
+  const svg = $("#graph-canvas");
+  svg.textContent = "";
+
+  const defs = el("defs");
+  for (const [kind, style] of Object.entries(EDGE_STYLE)) {
+    const marker = el("marker", {
+      id: `arrow-${kind}`, viewBox: "0 0 10 10", refX: 10, refY: 5,
+      markerWidth: 7, markerHeight: 7, orient: "auto-start-reverse",
+    });
+    marker.appendChild(el("path", { d: "M 0 0 L 10 5 L 0 10 z", fill: style.color }));
+    defs.appendChild(marker);
+  }
+  svg.appendChild(defs);
+
+  const root = el("g", { id: "viewport" });
+  svg.appendChild(root);
+
+  const layerHypers = el("g");
+  const layerEdges = el("g");
+  const layerNodes = el("g");
+  root.appendChild(layerHypers);
+  root.appendChild(layerEdges);
+  root.appendChild(layerNodes);
+
+  const pos = (id) => positions.get(id) || { x: 0, y: 0 };
+
+  // ハイパーノードの枠（大きいものから描いて入れ子に見せる）
+  const boxes = [];
+  for (const hyper of [...graph.containers, ...graph.rationale]) {
+    const members = doc.descendants(hyper.id).filter((id) => positions.has(id) &&
+      graph.nodes.some((node) => node.id === id));
+    if (!members.length) continue;
+    let minX = Infinity; let minY = Infinity; let maxX = -Infinity; let maxY = -Infinity;
+    for (const id of members) {
+      const point = pos(id);
+      minX = Math.min(minX, point.x - NODE_W / 2);
+      maxX = Math.max(maxX, point.x + NODE_W / 2);
+      minY = Math.min(minY, point.y - NODE_H / 2);
+      maxY = Math.max(maxY, point.y + NODE_H / 2);
+    }
+    const depth = doc.parentsOf(hyper.id).length;
+    const padding = 22 + depth * 10;
+    boxes.push({ hyper, x: minX - padding, y: minY - padding - 14,
+                 w: maxX - minX + padding * 2, h: maxY - minY + padding * 2 + 14 });
+  }
+  boxes.sort((a, b) => (b.w * b.h) - (a.w * a.h));
+  for (const box of boxes) {
+    const color = HYPER_COLOR[box.hyper.kind] || PALETTE.fallback;
+    const group = el("g", {
+      class: "graph-hyper" + (selection && selection.id === box.hyper.id ? " selected" : ""),
+      "data-id": box.hyper.id,
+    });
+    group.appendChild(el("rect", {
+      x: box.x, y: box.y, width: box.w, height: box.h, rx: 16,
+      fill: color, "fill-opacity": box.hyper.kind === "rationale" ? 0.05 : 0.07,
+      stroke: color, "stroke-opacity": 0.55, "stroke-width": 1.4,
+      "stroke-dasharray": box.hyper.kind === "rationale" ? "7 5" : null,
+    }));
+    const label = el("text", {
+      x: box.x + 12, y: box.y + 17, class: "hyper-label", fill: color,
+    }, (box.hyper.kind === "rationale" ? "🛈 " : "") + box.hyper.label);
+    group.appendChild(label);
+    group.style.cursor = "pointer";
+    group.addEventListener("click", (event) => { event.stopPropagation(); select("hypernode", box.hyper.id); });
+    group.addEventListener("dblclick", (event) => {
+      event.stopPropagation();
+      toggleCollapse(box.hyper.id);
+    });
+    layerHypers.appendChild(group);
+  }
+
+  // エッジ
+  for (const edge of graph.edges) {
+    const from = pos(edge.source);
+    const to = pos(edge.target);
+    const style = EDGE_STYLE[edge.kind] || EDGE_STYLE.uses;
+    const clipped = clipToBox(from, to);
+    const group = el("g", { class: "graph-edge", "data-id": edge.id });
+    const line = el("line", {
+      x1: clipped.x1, y1: clipped.y1, x2: clipped.x2, y2: clipped.y2,
+      stroke: style.color, "stroke-width": style.width,
+      "stroke-dasharray": style.dash || null,
+      "stroke-opacity": edge.derived ? 0.55 : 0.85,
+      "marker-end": `url(#arrow-${edge.kind})`,
+    });
+    group.appendChild(line);
+    const hit = el("line", {
+      x1: clipped.x1, y1: clipped.y1, x2: clipped.x2, y2: clipped.y2,
+      stroke: "transparent", "stroke-width": 12,
+    });
+    hit.style.cursor = "pointer";
+    hit.addEventListener("click", (event) => { event.stopPropagation(); select("edge", edge.id); });
+    group.appendChild(hit);
+    if (edge.label && !edge.meta) {
+      group.appendChild(el("text", {
+        x: (clipped.x1 + clipped.x2) / 2, y: (clipped.y1 + clipped.y2) / 2 - 3,
+        class: "edge-label", fill: style.color, "text-anchor": "middle",
+      }, edge.label));
+    }
+    if (selection && selection.type === "edge" && selection.id === edge.id) {
+      line.setAttribute("stroke-width", style.width + 2);
+    }
+    layerEdges.appendChild(group);
+  }
+
+  // ノード
+  for (const item of graph.nodes) {
+    const point = pos(item.id);
+    const size = nodeSize(item);
+    const color = (item.collapsedHyper || item.metaNode)
+      ? (HYPER_COLOR[item.kind] || PALETTE.fallback)
+      : colorOf(item);
+    const selected = selection && selection.id === item.id;
+    const group = el("g", {
+      class: "graph-node" + (selected ? " selected" : "") + (matches(item) ? "" : " dimmed"),
+      transform: `translate(${point.x}, ${point.y})`,
+      "data-id": item.id,
+    });
+    group.appendChild(el("rect", {
+      class: "node-shape",
+      x: -size.w / 2, y: -size.h / 2, width: size.w, height: size.h,
+      rx: item.kind === "concept" ? 17 : 7,
+      fill: color, "fill-opacity": item.metaNode ? 0.1 : 0.16,
+      stroke: color, "stroke-width": selected ? 3 : 1.5,
+      "stroke-dasharray": (item.collapsedHyper || item.metaNode) ? "6 3" : null,
+    }));
+    const hasCurie = !!item.curie;
+    group.appendChild(el("text", {
+      class: "node-label", x: 0, y: hasCurie ? -3 : 4,
+      "text-anchor": "middle", fill: "currentColor",
+    }, (item.metaNode ? "🛈 " : "") + trim(item.label, item.metaNode ? 17 : 15)));
+    if (hasCurie) {
+      group.appendChild(el("text", {
+        class: "node-curie", x: 0, y: 10, "text-anchor": "middle", fill: color,
+      }, trim(item.curie, 22)));
+    }
+    if (item.collapsedHyper) {
+      group.appendChild(el("text", {
+        class: "node-curie", x: 0, y: 12, "text-anchor": "middle", fill: color,
+      }, `▶ ${doc.descendants(item.id).length} 件`));
+    }
+    attachDrag(group, item.id);
+    group.addEventListener("click", (event) => {
+      event.stopPropagation();
+      select((item.collapsedHyper || item.metaNode) ? "hypernode" : "node", item.id);
+    });
+    group.addEventListener("dblclick", (event) => {
+      if (!item.collapsedHyper) return;
+      event.stopPropagation();
+      toggleCollapse(item.id);
+    });
+    layerNodes.appendChild(group);
+  }
+
+  applyView();
+  $("#graph-stats").textContent =
+    `　ノード ${graph.nodes.length}／エッジ ${graph.edges.length}／ハイパーノード ${boxes.length}`;
+}
+
+function trim(text, limit) {
+  const value = String(text ?? "");
+  return value.length > limit ? value.slice(0, limit - 1) + "…" : value;
+}
+
+function clipToBox(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const distance = Math.hypot(dx, dy) || 1;
+  const shrink = (point, sign) => {
+    const halfW = NODE_W / 2 + 4;
+    const halfH = NODE_H / 2 + 4;
+    const scale = Math.min(
+      Math.abs(dx) > 0.001 ? halfW / Math.abs(dx / distance) : Infinity,
+      Math.abs(dy) > 0.001 ? halfH / Math.abs(dy / distance) : Infinity
+    );
+    return { x: point.x + sign * (dx / distance) * scale, y: point.y + sign * (dy / distance) * scale };
+  };
+  const start = shrink(from, 1);
+  const end = shrink(to, -1);
+  return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
+}
+
+function applyView() {
+  const viewport = $("#viewport");
+  if (viewport) viewport.setAttribute("transform", `translate(${view.x}, ${view.y}) scale(${view.k})`);
+}
+
+function fitToScreen() {
+  const svg = $("#graph-canvas");
+  const rect = svg.getBoundingClientRect();
+  const points = [...positions.values()];
+  if (!points.length) return;
+  const minX = Math.min(...points.map((p) => p.x)) - 120;
+  const maxX = Math.max(...points.map((p) => p.x)) + 120;
+  const minY = Math.min(...points.map((p) => p.y)) - 90;
+  const maxY = Math.max(...points.map((p) => p.y)) + 90;
+  const k = Math.min(rect.width / (maxX - minX), rect.height / (maxY - minY), 1.6);
+  view = { k, x: rect.width / 2 - ((minX + maxX) / 2) * k, y: rect.height / 2 - ((minY + maxY) / 2) * k };
+  applyView();
+}
+
+// --- 操作 -------------------------------------------------------------------
+
+function attachDrag(group, id) {
+  group.addEventListener("pointerdown", (event) => {
+    event.stopPropagation();
+    group.setPointerCapture(event.pointerId);
+    const start = { x: event.clientX, y: event.clientY };
+    const origin = { ...positions.get(id) };
+    const move = (moveEvent) => {
+      const next = {
+        x: origin.x + (moveEvent.clientX - start.x) / view.k,
+        y: origin.y + (moveEvent.clientY - start.y) / view.k,
+        pinned: true,
+      };
+      positions.set(id, next);
+      render();
+    };
+    const up = () => {
+      group.removeEventListener("pointermove", move);
+      group.removeEventListener("pointerup", up);
+    };
+    group.addEventListener("pointermove", move);
+    group.addEventListener("pointerup", up);
+  });
+}
+
+function setupCanvas() {
+  const svg = $("#graph-canvas");
+  svg.addEventListener("pointerdown", (event) => {
+    svg.classList.add("dragging");
+    const start = { x: event.clientX, y: event.clientY, vx: view.x, vy: view.y };
+    const move = (moveEvent) => {
+      view.x = start.vx + (moveEvent.clientX - start.x);
+      view.y = start.vy + (moveEvent.clientY - start.y);
+      applyView();
+    };
+    const up = () => {
+      svg.classList.remove("dragging");
+      svg.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    svg.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  });
+  svg.addEventListener("click", () => select(null));
+  svg.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    const rect = svg.getBoundingClientRect();
+    const mx = event.clientX - rect.left;
+    const my = event.clientY - rect.top;
+    const factor = Math.exp(-event.deltaY * 0.0016);
+    const k = Math.min(3, Math.max(0.25, view.k * factor));
+    view.x = mx - (mx - view.x) * (k / view.k);
+    view.y = my - (my - view.y) * (k / view.k);
+    view.k = k;
+    applyView();
+  }, { passive: false });
+}
+
+function toggleCollapse(id) {
+  if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+  refresh({ relayout: true });
+}
+
+function select(type, id) {
+  selection = type ? { type, id } : null;
+  render();
+  renderInspector();
+  renderTree();
+}
+
+// --- 左ペイン ---------------------------------------------------------------
+
+function renderTree() {
+  const build = (hyper) => {
+    const children = (hyper.members || []).filter((id) => doc.isHyper(id));
+    const memberCount = doc.descendants(hyper.id).length;
+    const isCollapsed = collapsed.has(hyper.id);
+    const item = `<button class="item" data-id="${esc(hyper.id)}" aria-selected="${selection && selection.id === hyper.id}">
+        <span class="twisty">${children.length ? (isCollapsed ? "▶" : "▼") : "•"}</span>
+        <span>${esc(hyper.label)}</span>
+        <span class="count">${memberCount}</span>
+      </button>`;
+    const sub = children.length && !isCollapsed
+      ? `<ul>${children.map((id) => build(doc.byId(id))).join("")}</ul>` : "";
+    return `<li>${item}${sub}</li>`;
+  };
+  $("#tree").innerHTML = doc.roots().map(build).join("");
+  for (const button of $("#tree").querySelectorAll(".item")) {
+    button.addEventListener("click", () => select("hypernode", button.dataset.id));
+    button.addEventListener("dblclick", () => toggleCollapse(button.dataset.id));
+  }
+}
+
+function renderLegend() {
+  const nodeItems = [
+    ["概念（concept）", PALETTE.concept],
+    ["schema.org の用語", PALETTE.schema],
+    ["CCSO の用語", PALETTE.ccso],
+    ["ローカル拡張 urd:", PALETTE.urd],
+    ["OLOUD（参照のみ）", PALETTE.oloud],
+    ["ルール種別", PALETTE["rule-type"]],
+    ["🛈 メタ知識（rationale）", HYPER_COLOR.rationale],
+  ];
+  const edgeItems = [
+    ["uses（採用した用語）", EDGE_STYLE.uses, false],
+    ["alternative（他語彙の対応）", EDGE_STYLE.alternative, true],
+    ["close-match（同一視しない）", EDGE_STYLE["close-match"], true],
+    ["derived-from（導出）", EDGE_STYLE["derived-from"], true],
+    ["constrains / sets / reads", EDGE_STYLE.constrains, false],
+  ];
+  $("#legend").innerHTML = [
+    ...nodeItems.map(([label, color]) =>
+      `<span class="item"><span class="swatch" style="background:${color}33;border-color:${color}"></span>${esc(label)}</span>`),
+    '<span class="item" style="margin-top:4px"></span>',
+    ...edgeItems.map(([label, style, dashed]) =>
+      `<span class="item"><span class="${dashed ? "dash" : "solid"}" style="border-color:${style.color}"></span>${esc(label)}</span>`),
+  ].join("");
+}
+
+// --- インスペクタ -----------------------------------------------------------
+
+function field(label, key, value, options = {}) {
+  const attrs = `data-key="${esc(key)}"${options.readonly ? " readonly class=\"readonly\"" : ""}`;
+  const control = options.multiline
+    ? `<textarea rows="${options.rows || 3}" ${attrs}>${esc(value ?? "")}</textarea>`
+    : `<input ${attrs} value="${esc(value ?? "")}">`;
+  return `<div class="field"><label>${esc(label)}</label>${control}</div>`;
+}
+
+function renderInspector() {
+  const panel = $("#inspector");
+  if (!selection) {
+    panel.innerHTML = '<p class="muted">ノードまたはエッジを選択してください。</p>'
+      + `<p class="muted">${isEdited() ? "このブラウザに保存された編集を表示しています。" : "既定のグラフ文書を表示しています。"}</p>`;
+    return;
+  }
+  if (selection.type === "edge") return renderEdgeInspector(panel);
+
+  const item = doc.byId(selection.id);
+  if (!item) return select(null);
+  const isHyper = doc.isHyper(item.id);
+  const parents = doc.parentsOf(item.id);
+  const related = doc.allEdges().filter((e) => e.source === item.id || e.target === item.id);
+
+  let html = `<p style="margin:0 0 6px"><span class="tag">${esc(item.kind)}</span>
+      <code style="font-size:.72rem">${esc(item.id)}</code></p>`;
+  html += field("ラベル", "label", item.label);
+  if (item.curie) {
+    const namespace = doc.namespace(doc.prefixOf(item.curie));
+    html += field("CURIE", "curie", item.curie, { readonly: true });
+    if (namespace) {
+      html += `<p class="muted" style="margin:-4px 0 8px">${esc(namespace.label)}
+        ${namespace.version ? esc(namespace.version) : ""}
+        <a href="${esc(namespace.iri + item.curie.split(":")[1])}" target="_blank" rel="noopener">定義を開く</a></p>`;
+    }
+  }
+  if (item.kind === "term") html += field("説明", "comment", item.comment, { multiline: true });
+  if (item.note) html += field("備考", "note", item.note, { multiline: true, rows: 2 });
+  if (isHyper) {
+    if (item.kind === "rationale") {
+      html += field("言明（メタ知識）", "statement", item.statement, { multiline: true, rows: 5 });
+      html += field("根拠", "evidence", item.evidence, { multiline: true, rows: 2 });
+    }
+    html += `<div class="field"><label>メンバー（${(item.members || []).length}）</label>
+      <div class="chip-list">${(item.members || []).map((id) =>
+        `<span class="chip" data-goto="${esc(id)}">${esc((doc.byId(id) || {}).label || id)}</span>`).join("") || '<span class="muted">なし</span>'}</div></div>`;
+    if ((item.about || []).length) {
+      html += `<div class="field"><label>対象（about）</label>
+        <div class="chip-list">${item.about.map((id) =>
+          `<span class="chip" data-goto="${esc(id)}">${esc((doc.byId(id) || {}).label || id)}</span>`).join("")}</div></div>`;
+    }
+  }
+  if (item.kind === "rule-type") {
+    html += `<div class="field"><label>Horn節</label><pre style="margin:0">${esc(item.horn_clause || "")}</pre></div>`;
+    html += `<div class="field"><label>制約するクラス</label><code>${esc(item.subject_class || "")}</code></div>`;
+  }
+  if ((item.close_match || []).length) {
+    html += `<div class="field"><label>close-match（同一視しない）</label>
+      <div class="chip-list">${item.close_match.map((curie) => `<span class="chip">${esc(curie)}</span>`).join("")}</div></div>`;
+  }
+  if (parents.length) {
+    html += `<div class="field"><label>所属するハイパーノード</label>
+      <div class="chip-list">${parents.map((id) =>
+        `<span class="chip" data-goto="${esc(id)}">${esc((doc.byId(id) || {}).label || id)}</span>`).join("")}</div></div>`;
+  }
+  html += `<div class="field"><label>関係（${related.length}）</label>
+    <ul class="relations">${related.slice(0, 14).map((edge) => {
+      const other = edge.source === item.id ? edge.target : edge.source;
+      const arrow = edge.source === item.id ? "→" : "←";
+      return `<li><span class="tag">${esc(edge.kind)}</span> ${arrow}
+        <span class="chip" data-goto="${esc(other)}">${esc((doc.byId(other) || {}).label || other)}</span>
+        ${edge.derived ? '<span class="muted">🔒導出</span>' : ""}</li>`;
+    }).join("")}</ul></div>`;
+
+  html += `<div class="actions">
+      <button class="primary" data-action="apply">変更を保存</button>
+      ${isHyper ? '<button data-action="edit-members">メンバーを編集</button>' : ""}
+      <button class="danger" data-action="delete">削除</button>
+    </div>`;
+  panel.innerHTML = html;
+  bindInspector(item, isHyper);
+}
+
+function renderEdgeInspector(panel) {
+  const edge = doc.allEdges().find((item) => item.id === selection.id);
+  if (!edge) return select(null);
+  const label = (id) => esc((doc.byId(id) || {}).label || id);
+  panel.innerHTML = `
+    <p style="margin:0 0 6px"><span class="tag">edge</span> <span class="tag">${esc(edge.kind)}</span>
+      ${edge.derived ? '<span class="tag">🔒 導出</span>' : ""}</p>
+    <p style="margin:0 0 10px">
+      <span class="chip" data-goto="${esc(edge.source)}">${label(edge.source)}</span>
+      　→　<span class="chip" data-goto="${esc(edge.target)}">${label(edge.target)}</span></p>
+    ${edge.derived
+      ? '<p class="muted">このエッジは rule_terms / evaluated_terms / close_match から自動生成されています。'
+        + '元のノードの属性を編集してください。</p>'
+      : `<div class="field"><label>種別</label><select data-key="kind">${
+          EDGE_KINDS.map((kind) => `<option${kind === edge.kind ? " selected" : ""}>${kind}</option>`).join("")
+        }</select></div>${field("ラベル", "label", edge.label)}
+        <div class="actions">
+          <button class="primary" data-action="apply-edge">変更を保存</button>
+          <button class="danger" data-action="delete-edge">削除</button>
+        </div>`}`;
+  bindGoto(panel);
+  const apply = panel.querySelector('[data-action="apply-edge"]');
+  if (apply) {
+    apply.addEventListener("click", () => {
+      const target = doc.edges.find((item) => item.id === edge.id);
+      if (!target) return;
+      target.kind = panel.querySelector('[data-key="kind"]').value;
+      const labelValue = panel.querySelector('[data-key="label"]').value.trim();
+      if (labelValue) target.label = labelValue; else delete target.label;
+      commit("エッジを更新しました。");
+    });
+  }
+  const remove = panel.querySelector('[data-action="delete-edge"]');
+  if (remove) {
+    remove.addEventListener("click", () => {
+      if (!confirm("このエッジを削除します。よろしいですか？")) return;
+      doc.edges = doc.edges.filter((item) => item.id !== edge.id);
+      selection = null;
+      commit("エッジを削除しました。");
+    });
+  }
+}
+
+function bindGoto(panel) {
+  for (const chip of panel.querySelectorAll("[data-goto]")) {
+    chip.addEventListener("click", () => {
+      const id = chip.dataset.goto;
+      select(doc.isHyper(id) ? "hypernode" : "node", id);
+    });
+  }
+}
+
+function bindInspector(item, isHyper) {
+  const panel = $("#inspector");
+  bindGoto(panel);
+
+  panel.querySelector('[data-action="apply"]').addEventListener("click", () => {
+    for (const input of panel.querySelectorAll("[data-key]")) {
+      if (input.hasAttribute("readonly")) continue;
+      const key = input.dataset.key;
+      const value = input.value.trim();
+      if (value) item[key] = value; else delete item[key];
+    }
+    commit("保存しました。");
+  });
+
+  const editMembers = panel.querySelector('[data-action="edit-members"]');
+  if (editMembers) {
+    editMembers.addEventListener("click", () => {
+      const current = (item.members || []).join("\n");
+      const next = prompt(
+        "メンバーのIDを1行に1つ書いてください。\n利用できるID例：" + doc.all.slice(0, 3).map((n) => n.id).join(", "),
+        current);
+      if (next === null) return;
+      item.members = next.split("\n").map((line) => line.trim()).filter(Boolean);
+      commit("メンバーを更新しました。");
+    });
+  }
+
+  panel.querySelector('[data-action="delete"]').addEventListener("click", () => {
+    const referencing = doc.allEdges().filter((edge) => edge.source === item.id || edge.target === item.id);
+    const parents = doc.parentsOf(item.id);
+    const message = `「${item.label}」を削除します。`
+      + (referencing.length ? `\n関係する ${referencing.length} 本のエッジも削除されます。` : "")
+      + (parents.length ? `\n${parents.length} 件のハイパーノードのメンバーからも外れます。` : "");
+    if (!confirm(message)) return;
+    doc.nodes = doc.nodes.filter((node) => node.id !== item.id);
+    doc.hypernodes = doc.hypernodes.filter((hyper) => hyper.id !== item.id);
+    doc.edges = doc.edges.filter((edge) => edge.source !== item.id && edge.target !== item.id);
+    for (const hyper of doc.hypernodes) {
+      hyper.members = (hyper.members || []).filter((id) => id !== item.id);
+      hyper.about = (hyper.about || []).filter((id) => id !== item.id);
+    }
+    selection = null;
+    commit("削除しました。");
+  });
+}
+
+/** 変更を検証し、保存して再描画する。問題があっても保存はするが、必ず知らせる。 */
+function commit(message) {
+  const problems = doc.validate();
+  persist();
+  refresh({ relayout: false });
+  describeDocument();
+  // 再描画でインスペクタが作り直されるため、状態表示はそのあとに書く。
+  const status = $("#global-status");
+  status.innerHTML = problems.length
+    ? `<div class="status-line ng">${esc(message)}　ただし次の問題があります：<br>`
+      + problems.slice(0, 5).map(esc).join("<br>") + "</div>"
+    : `<div class="status-line ok">${esc(message)}</div>`;
+}
+
+// --- 追加 -------------------------------------------------------------------
+
+function uniqueId(base) {
+  let candidate = base;
+  let index = 2;
+  while (doc.byId(candidate)) { candidate = `${base}-${index}`; index += 1; }
+  return candidate;
+}
+
+function addNode() {
+  const kind = prompt(`ノードの種類を選んでください：${NODE_KINDS.join(" / ")}`, "concept");
+  if (!kind || !NODE_KINDS.includes(kind)) return;
+  const label = prompt("ラベル（日本語名）", "新しい概念");
+  if (!label) return;
+  const node = { id: uniqueId(`${kind}/new`), kind, label };
+  if (kind === "term") {
+    const curie = prompt("CURIE（例：schema:Course）", "urd:newTerm");
+    if (!curie) return;
+    node.curie = curie;
+    node.term_kind = prompt("class か property か", "property") === "class" ? "class" : "property";
+    node.comment = "";
+  }
+  doc.nodes.push(node);
+  selection = { type: "node", id: node.id };
+  commit("ノードを追加しました。");
+}
+
+function addHypernode() {
+  const kind = prompt(`ハイパーノードの種類：${HYPERNODE_KINDS.join(" / ")}`, "domain");
+  if (!kind || !HYPERNODE_KINDS.includes(kind)) return;
+  const label = prompt("ラベル", kind === "rationale" ? "新しいメタ知識" : "新しいまとまり");
+  if (!label) return;
+  const hyper = { id: uniqueId(`${kind}/new`), kind, label, members: [] };
+  if (kind === "rationale") {
+    hyper.statement = prompt("この集合について言いたいこと（statement）", "") || "（未記入）";
+    hyper.about = [];
+  }
+  if (selection && doc.byId(selection.id) && kind !== "rationale") hyper.members.push(selection.id);
+  doc.hypernodes.push(hyper);
+  selection = { type: "hypernode", id: hyper.id };
+  commit("ハイパーノードを追加しました。");
+}
+
+function addEdge() {
+  if (!selection || !doc.byId(selection.id)) {
+    alert("先に始点となるノードを選択してください。");
+    return;
+  }
+  const source = selection.id;
+  const target = prompt(
+    `終点のIDを入力してください。\n始点：${source}\n\n例：${doc.nodes.slice(0, 2).map((n) => n.id).join(" / ")}`, "");
+  if (!target) return;
+  if (!doc.byId(target)) { alert(`そのIDのノードがありません: ${target}`); return; }
+  const kind = prompt(`関係の種類：${EDGE_KINDS.join(" / ")}`, "uses");
+  if (!kind || !EDGE_KINDS.includes(kind)) return;
+  doc.edges.push({ id: `edge/${kind}/${source}->${target}`, source, target, kind });
+  commit("エッジを追加しました。");
+}
+
+// --- 書き出し ---------------------------------------------------------------
+
+// 埋め込みビューアなど、ページ発のダウンロードが禁じられた環境でも取り出せるよう、
+// 本文をそのまま表示してコピーできるようにする。保存はその上の任意手段。
+function showExport(filename, text, type, caption) {
+  $("#export-text").value = text;
+  $("#export-caption").textContent = `　${caption}（${text.length.toLocaleString()} 文字）`;
+  $("#export-note").textContent = "";
+  const panel = $("#export-panel");
+  panel.hidden = false;
+
+  $("#export-copy").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      $("#export-note").textContent = "コピーしました。";
+    } catch (error) {
+      $("#export-text").select();
+      $("#export-note").textContent = "コピーできませんでした。本文を選択したので手動でコピーしてください。";
+    }
+  };
+  // 保存ボタンは、ダウンロードが許されない環境向けの版では取り除かれている。
+  const downloadButton = $("#export-download");
+  if (downloadButton) downloadButton.onclick = () => {
+    try {
+      const url = URL.createObjectURL(new Blob([text], { type }));
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      $("#export-note").textContent = `${filename} を保存しました。`;
+    } catch (error) {
+      $("#export-note").textContent = "この環境では保存できません。コピーをお使いください。";
+    }
+  };
+  $("#export-close").onclick = () => { panel.hidden = true; };
+  panel.scrollIntoView({ block: "nearest" });
+}
+
+function exportYaml() {
+  const problems = doc.validate();
+  if (problems.length && !confirm(
+    `次の問題があります。書き出しますか？\n\n${problems.slice(0, 6).join("\n")}`)) return;
+  const header = "# data/ontology_graph.yaml として保存してください。\n"
+    + "# docs/graph.html で編集した内容です。取り込んだら\n"
+    + "#   python scripts/sync_docs_data.py && python -m pytest\n"
+    + "# を実行してください。\n";
+  showExport("ontology_graph.yaml",
+    header + toYaml(doc.toDocument(), 0).replace(/^\n/, ""), "text/yaml",
+    "data/ontology_graph.yaml として保存");
+}
+
+function exportJson() {
+  showExport("ontology_graph.json", JSON.stringify(doc.toDocument(), null, 2),
+    "application/json", "JSON 形式");
+}
+
+// --- 起動 -------------------------------------------------------------------
+
+function refresh({ relayout }) {
+  const graph = visibleGraph();
+  if (relayout) {
+    positions = new Map([...positions].filter(([, value]) => value.pinned));
+    runLayout(graph);
+  } else if (graph.nodes.some((node) => !positions.has(node.id))) {
+    // 新しく増えたノードだけ座標が無い。短めに回して既存の配置を大きく崩さない。
+    runLayout(graph, 90);
+  }
+  render();
+  renderTree();
+  renderInspector();
+}
+
+function describeDocument() {
+  const problems = doc.validate();
+  const counts = `ノード ${doc.nodes.length}／ハイパーノード ${doc.hypernodes.length}`
+    + `／明示エッジ ${doc.edges.length}／導出エッジ ${doc.derivedEdges().length}`;
+  $("#doc-meta").innerHTML = `${esc(doc.meta.title || "")}<br>${counts}`
+    + (problems.length ? `<br><span class="ng">検証エラー ${problems.length} 件</span>` : "");
+}
+
+$("#search").addEventListener("input", (event) => {
+  searchText = event.target.value.trim().toLowerCase();
+  render();
+});
+$("#grouping").addEventListener("change", () => refresh({ relayout: true }));
+$("#show-derived").addEventListener("change", () => refresh({ relayout: false }));
+$("#show-rationale").addEventListener("change", () => refresh({ relayout: true }));
+$("#relayout").addEventListener("click", () => {
+  positions = new Map();
+  refresh({ relayout: true });
+  fitToScreen();
+});
+$("#fit").addEventListener("click", fitToScreen);
+$("#add-node").addEventListener("click", addNode);
+$("#add-edge").addEventListener("click", addEdge);
+$("#add-hyper").addEventListener("click", addHypernode);
+$("#export-yaml").addEventListener("click", exportYaml);
+$("#export-json").addEventListener("click", exportJson);
+$("#reset").addEventListener("click", () => {
+  if (!confirm("このブラウザに保存した編集を破棄し、既定のグラフ文書に戻します。")) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch (error) { /* 無視 */ }
+  doc = new GraphDoc(EMBEDDED);
+  selection = null;
+  collapsed = new Set();
+  positions = new Map();
+  refresh({ relayout: true });
+  fitToScreen();
+  describeDocument();
+});
+
+setupCanvas();
+renderLegend();
+refresh({ relayout: true });
+describeDocument();
+fitToScreen();
+</script>
+</body>
+</html>

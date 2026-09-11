@@ -1,4 +1,4 @@
-"""docs/index.html に埋め込むデータブロックを data/ と src/ontology.py から再生成する。
+"""docs/ 配下のページに埋め込むデータブロックを、data/ と src/ から再生成する。
 
 GitHub Pages 版はサーバーを持たないため、ナレッジグラフ・ルール・語彙定義を
 HTML内へ埋め込む。そのままだと Python 側と二重管理になるので、埋め込み部分は
@@ -6,8 +6,9 @@ HTML内へ埋め込む。そのままだと Python 側と二重管理になる�
 
     python scripts/sync_docs_data.py
 
-判定ロジック自体（JavaScript）は引き続き手で移植する必要がある。
+判定ロジック（JavaScript）は引き続き手で移植する必要がある。
 このスクリプトが同期させるのは「語彙とデータ」であって「処理」ではない。
+処理の一致は tests/test_docs_mirror.py が Node.js で実行して確認する。
 """
 
 from __future__ import annotations
@@ -22,18 +23,20 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from src.graph_document import GraphDocument  # noqa: E402
 from src.ontology import (  # noqa: E402
     CCSO_VERSION,
     CONDITION_TERM_LABELS,
     CONDITION_TERMS,
     CROSSWALK,
+    GRAPH_PATH,
     JSONLD_CONTEXT,
     LOCAL_TERM_DEFINITIONS,
     RULE_TYPE_ONTOLOGY,
     SCHEMA_ORG_VERSION,
 )
 
-DOCS = ROOT / "docs" / "index.html"
+DOCS = ROOT / "docs"
 BLOCK = re.compile(
     r"(?P<head><!-- BEGIN (?P<name>[a-z-]+) .*?-->\s*<script [^>]*>)"
     r"(?P<body>.*?)"
@@ -84,37 +87,55 @@ def ontology_block() -> str:
     return json.dumps(payload, ensure_ascii=False, indent=1)
 
 
-BUILDERS = {
-    "knowledge-graph": knowledge_graph_block,
-    "default-rules": default_rules_block,
-    "ontology": ontology_block,
+def ontology_graph_block() -> str:
+    document = GraphDocument(GRAPH_PATH)
+    return json.dumps(document.to_dict(), ensure_ascii=False, indent=1)
+
+
+#: ページごとの生成ブロック
+PAGES: dict[str, dict[str, object]] = {
+    "index.html": {
+        "knowledge-graph": knowledge_graph_block,
+        "default-rules": default_rules_block,
+        "ontology": ontology_block,
+    },
+    "graph.html": {
+        "ontology-graph": ontology_graph_block,
+    },
 }
 
 
-def render(html: str) -> str:
+def render(html: str, builders: dict[str, object]) -> str:
     def replace(match: re.Match[str]) -> str:
-        name = match.group("name")
-        builder = BUILDERS.get(name)
+        builder = builders.get(match.group("name"))
         if builder is None:
             return match.group(0)
-        return f"{match.group('head')}\n{builder()}\n{match.group('tail')}"
+        return f"{match.group('head')}\n{builder()}\n{match.group('tail')}"  # type: ignore[operator]
 
     return BLOCK.sub(replace, html)
 
 
 def main() -> int:
-    html = DOCS.read_text(encoding="utf-8")
-    names = {match.group("name") for match in BLOCK.finditer(html)}
-    missing = set(BUILDERS) - names
-    if missing:
-        print(f"docs/index.html に生成ブロックがありません: {sorted(missing)}", file=sys.stderr)
-        return 1
-    updated = render(html)
-    if updated == html:
-        print("docs/index.html は既に最新です。")
-        return 0
-    DOCS.write_text(updated, encoding="utf-8")
-    print(f"docs/index.html を更新しました（{', '.join(sorted(names))}）。")
+    changed: list[str] = []
+    for filename, builders in PAGES.items():
+        path = DOCS / filename
+        if not path.exists():
+            print(f"{filename} がありません。", file=sys.stderr)
+            return 1
+        html = path.read_text(encoding="utf-8")
+        names = {match.group("name") for match in BLOCK.finditer(html)}
+        missing = set(builders) - names
+        if missing:
+            print(f"{filename} に生成ブロックがありません: {sorted(missing)}", file=sys.stderr)
+            return 1
+        updated = render(html, builders)
+        if updated != html:
+            path.write_text(updated, encoding="utf-8")
+            changed.append(f"{filename}（{', '.join(sorted(builders))}）")
+    if changed:
+        print("更新しました: " + " / ".join(changed))
+    else:
+        print("docs/ は既に最新です。")
     return 0
 
 
