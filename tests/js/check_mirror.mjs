@@ -1,10 +1,13 @@
 // docs/index.html の判定ロジック（<script id="engine">）を Node.js で実行し、
-// 学生の射影・質問への回答・通知をJSONで標準出力へ書き出す。
+// 学生の射影・質問への回答・通知・読み下しをJSONで標準出力へ書き出す。
 // tests/test_docs_mirror.py が、この出力を Python 実装の結果と突き合わせる。
 //
 //   node tests/js/check_mirror.mjs <docs/index.html> <questions.json>
+//
+// engine は docs/assets/horn.js（Horn 節の処理系）を使うので、先にそれを読み込む。
 
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import vm from "node:vm";
 
 const [htmlPath, questionsPath] = process.argv.slice(2);
@@ -21,10 +24,17 @@ if (!engine) {
   console.error('docs/index.html に <script id="engine"> がありません。');
   process.exit(1);
 }
+if (!html.includes('<script src="assets/horn.js"></script>')) {
+  console.error("docs/index.html が assets/horn.js を読み込んでいません。");
+  process.exit(1);
+}
 
 globalThis.document = {
   getElementById: (id) => (blocks.has(id) ? { textContent: blocks.get(id) } : null),
 };
+
+const hornPath = join(dirname(htmlPath), "assets", "horn.js");
+vm.runInThisContext(readFileSync(hornPath, "utf8"), { filename: "docs/assets/horn.js" });
 
 const probe = `
 ;(() => {
@@ -40,6 +50,7 @@ const probe = `
       registered_courses: target.registered_courses,
       registration_completed: target.registration_completed,
     },
+    completion_records: completionRecords(target.iri),
     answers: ${JSON.stringify(questions)}.map((question) => {
       const { intent, decision } = decide(question, target);
       return {
@@ -50,13 +61,23 @@ const probe = `
         unmet: decision.unmet,
         terms: decision.terms,
         horn_clause: decision.hornClause,
+        premises: decision.premises,
+        facts: decision.facts,
+        calculation: decision.calculation,
+        proof: decision.proof,
       };
     }),
     notifications: notificationsFor(target).map((notice) => ({
       level: notice.level, title: notice.title, message: notice.message,
     })),
   });
-  return Object.fromEntries(STUDENTS.map((target) => [target.student_id, forStudent(target)]));
+  return {
+    students: Object.fromEntries(STUDENTS.map((target) => [target.student_id, forStudent(target)])),
+    program: HORN_PROGRAM.clauses.map((clause) => ({
+      origin: HORN_PROGRAM.origins.get(clause.head.key), source: clause.source,
+    })),
+    readings: Object.fromEntries(Object.keys(ONTOLOGY.rule_types).map((type) => [type, READER.readRuleType(type)])),
+  };
 })()
 `;
 

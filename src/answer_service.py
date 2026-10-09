@@ -22,6 +22,7 @@ class AnswerService:
             Intent.GRADUATION_CREDIT_REQUIREMENT: self.rule_engine.get_graduation_credit_requirement,
             Intent.REQUIRED_COURSES: lambda: self.rule_engine.evaluate_required_courses(student),
             Intent.THESIS_ELIGIBILITY: lambda: self.rule_engine.evaluate_thesis_eligibility(student),
+            Intent.FIRST_YEAR_REQUIREMENT: lambda: self.rule_engine.evaluate_first_year_requirement(student),
         }
         handler = handlers.get(intent)
         if handler is None:

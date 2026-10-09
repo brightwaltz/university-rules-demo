@@ -3,8 +3,10 @@
 Pages 版はサーバーを持てないため、判定ロジックを JavaScript で二重に実装している。
 放置すると必ず乖離するので、次の2点を機械的に確認する。
 
-1. 埋め込みデータ（グラフ・ルール・語彙）が data/ と src/ontology.py と一致すること
-2. JavaScript の判定結果が Python の判定結果と一致すること（Node.js で実行して比較）
+1. 埋め込みデータ（グラフ・ルール・語彙・Horn 節）が data/ と src/ontology.py と一致すること
+2. JavaScript の判定結果が Python の判定結果と一致すること（Node.js で実行して比較）。
+   判定は両者とも同じ Horn 節を同じ処理系（src/horn.py と docs/assets/horn.js）で評価するので、
+   結論だけでなく原子論理式・事実・計算式・証明木（読み下しつき）まで一字一句比べる。
 """
 
 import importlib.util
@@ -17,8 +19,10 @@ from pathlib import Path
 import pytest
 
 from src.answer_service import AnswerService
+from src.horn_reading import read_rule_type
 from src.intent import RuleBasedIntentDetector
 from src.notification import NotificationService
+from src.ontology import HORN_PROGRAM, RULE_TYPE_ONTOLOGY
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +39,9 @@ QUESTIONS = [
     "必修科目は足りていますか？",
     "卒業研究を履修できますか？",
     "学食のおすすめは？",
+    "1年次の単位要件は満たしていますか？",
+    "1年次で何単位必要？",
+    "修学指導の対象ですか？",
 ]
 
 
@@ -86,18 +93,43 @@ def javascript_results(tmp_path_factory):
     return json.loads(completed.stdout)
 
 
-def test_javascript_projects_the_same_students(javascript_results, graph):
+@pytest.fixture(scope="module")
+def javascript_students(javascript_results):
+    return javascript_results["students"]
+
+
+def test_javascript_builds_the_same_horn_program(javascript_results):
+    """埋め込みの program_sources から、HORN_PROGRAM と同じ節が同じ順・同じ origin で組み上がること。"""
+    expected = [
+        {"origin": HORN_PROGRAM.origins[clause.head.key], "source": clause.source}
+        for clause in HORN_PROGRAM.clauses
+    ]
+    assert javascript_results["program"] == expected
+
+
+def test_javascript_reads_every_rule_type_the_same_way(javascript_results, graph):
+    """全 rule-type の一般形の読み下し（read_rule_type）が一字一句一致すること。"""
+    expected = {rule_type: read_rule_type(rule_type, graph) for rule_type in RULE_TYPE_ONTOLOGY}
+    assert javascript_results["readings"] == expected
+    assert any(expected.values())
+
+
+def test_javascript_projects_the_same_students(javascript_students, graph):
     python_students = {student.student_id: student for student in graph.students()}
-    assert set(javascript_results) == set(python_students)
-    for student_id, payload in javascript_results.items():
+    assert set(javascript_students) == set(python_students)
+    for student_id, payload in javascript_students.items():
         expected = python_students[student_id].model_dump(exclude={"iri"})
         assert payload["projection"] == expected, student_id
+        assert payload["completion_records"] == graph.completion_records(
+            python_students[student_id].iri
+        ), student_id
 
 
-def test_javascript_answers_match_the_rule_engine(javascript_results, engine, graph):
+def test_javascript_answers_match_the_rule_engine(javascript_students, engine, graph):
     service = AnswerService(engine, RuleBasedIntentDetector())
+    proofs = 0
     for student in graph.students():
-        answers = {row["question"]: row for row in javascript_results[student.student_id]["answers"]}
+        answers = {row["question"]: row for row in javascript_students[student.student_id]["answers"]}
         for question in QUESTIONS:
             intent, decision = service.answer(question, student)
             actual = answers[question]
@@ -108,16 +140,23 @@ def test_javascript_answers_match_the_rule_engine(javascript_results, engine, gr
             assert actual["unmet"] == decision.unmet_conditions, context
             assert actual["terms"] == decision.ontology_terms, context
             assert actual["horn_clause"] == decision.horn_clause, context
+            assert actual["premises"] == [p.model_dump() for p in decision.premises], context
+            assert actual["facts"] == decision.facts, context
+            assert actual["calculation"] == decision.calculation, context
+            assert actual["proof"] == decision.proof, context
+            proofs += decision.proof is not None
+    # 証明木の照合が空振りしていないこと
+    assert proofs >= len(graph.students()) * 5
 
 
-def test_javascript_notifications_match_the_notification_service(javascript_results, engine, graph):
+def test_javascript_notifications_match_the_notification_service(javascript_students, engine, graph):
     service = NotificationService(engine)
     for student in graph.students():
         expected = [
             {"level": notice.level, "title": notice.title, "message": notice.message}
             for notice in service.generate(student)
         ]
-        assert javascript_results[student.student_id]["notifications"] == expected, student.student_id
+        assert javascript_students[student.student_id]["notifications"] == expected, student.student_id
 
 
 @pytest.fixture(scope="module")

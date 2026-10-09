@@ -6,6 +6,9 @@ from typing import Any
 
 import yaml
 
+from src.horn import FactBase, Solver, Var, atom
+from src.horn_reading import annotate
+from src.jsonld_export import effective_graph
 from src.knowledge_graph import KnowledgeGraph
 from src.models import (
     DecisionResult,
@@ -16,14 +19,16 @@ from src.models import (
     RulesConfig,
     Student,
 )
-from src.ontology import CONDITION_TERM_LABELS, CONDITION_TERMS, RULE_TYPE_ONTOLOGY
+from src.ontology import CONDITION_TERM_LABELS, CONDITION_TERMS, HORN_PROGRAM, RULE_TYPE_ONTOLOGY
 
 
 class RuleEngine:
-    """YAMLの規則値を、明示的なPython条件式で評価する決定論的エンジン。
+    """規程の Horn 節を、ナレッジグラフの事実の上で評価する決定論的エンジン。
 
+    可否判定と残り単位数は src/horn.py の処理系（``HORN_PROGRAM``）に問い合わせて決める。
+    事実は、グラフに rules.yaml の値を重ねた実効グラフ（``effective_graph``）から作る。
     各判定は「どのオントロジー用語を読んだか」（ontology_terms）と、
-    「Horn節の本体をどう具体化したか」（premises）を結果へ添える。
+    「Horn節の本体をどう具体化したか」（premises）、証明木（proof）を結果へ添える。
     生成AIは介在せず、可否・数値・根拠はすべてこのクラスが決める。
     """
 
@@ -35,6 +40,11 @@ class RuleEngine:
         )
         self.graph = graph
         self._rules_by_type = {rule.rule_type: rule for rule in self.config.rules}
+        self.facts = FactBase.from_jsonld(effective_graph(graph, self.config.rules)["@graph"])
+        self.facts.add("urd:evaluationDate", (self.evaluation_date.isoformat(),))
+        self.solver = Solver(HORN_PROGRAM, self.facts)
+        # グラフから射影した学生。判定してよいのは、これと一致する Student だけ
+        self._projected = {student.iri: student for student in graph.students()}
 
     @property
     def evaluation_date(self) -> date:
@@ -71,15 +81,45 @@ class RuleEngine:
         subject = getattr(rule, "subject", None)
         return str(subject) if subject else None
 
+    # --- 処理系への問い合わせ -------------------------------------------------
+
+    @staticmethod
+    def _student_iri(student: Student) -> str:
+        return student.iri or f"urdi:student/{student.student_id}"
+
+    def _check_student(self, student: Student) -> str:
+        """Student がナレッジグラフの射影と一致することを確かめ、その IRI を返す。
+
+        判定は常にグラフ上の事実だけから行う。グラフに居ない学生や、射影から値を
+        変えた Student は判定しない（Student の値を事実の代わりに使わない）。
+        """
+        iri = self._student_iri(student)
+        if student.iri is None or self._projected.get(student.iri) != student:
+            raise ValueError(f"ナレッジグラフ上の学生ではないため判定できません: {iri}")
+        return iri
+
+    def _proof(self, solver: Solver, goal: Any) -> dict[str, Any]:
+        """入口の述語の証明木に読み下しを付ける。"""
+        return annotate(solver.explain(goal).to_dict(), self.graph)
+
+    @staticmethod
+    def _require(value: Any, what: str) -> Any:
+        if value is None:
+            raise ValueError(f"{what}を処理系で求められません")
+        return value
+
     def _course_premises(
-        self, student: Student, course_codes: list[str], term: str
+        self, solver: Solver, student: Student, course_codes: list[str], term: str
     ) -> tuple[list[Premise], list[str]]:
-        """必修・前提科目の修得状況を原子論理式へ落とす。"""
+        """必修・前提科目の修得状況を原子論理式へ落とす（各科目を処理系に問い合わせる）。"""
         premises: list[Premise] = []
         missing: list[str] = []
+        iri = self._student_iri(student)
         for code in course_codes:
             label = self.graph.course_label(code)
-            satisfied = code in student.completed_courses
+            satisfied = self.graph.has_course(code) and solver.holds(
+                atom(term, iri, self.graph.course(code).iri)
+            )
             premises.append(
                 Premise(
                     term=term,
@@ -156,7 +196,14 @@ class RuleEngine:
         rule = self._rule("annual_credit_limit")
         ontology = self._ontology(rule)
         limit = int(self._value(rule, "max_credits"))
-        remaining = max(0, limit - student.current_registered_credits)
+        iri = self._check_student(student)
+        solver = self.solver
+        registered = self._require(
+            solver.value(atom("urd:registeredCredits", iri, Var("Registered")), "Registered"),
+            "履修登録単位数",
+        )
+        goal = atom("remaining_credits", iri, Var("Remaining"))
+        remaining = self._require(solver.value(goal, "Remaining"), "残り履修可能単位数")
         return DecisionResult(
             status=DecisionStatus.INFO,
             message=f"現在、あと{remaining}単位履修できます。",
@@ -164,13 +211,13 @@ class RuleEngine:
             rule_references=[self._reference(rule)],
             facts={
                 "annual_credit_limit": limit,
-                "current_registered_credits": student.current_registered_credits,
+                "current_registered_credits": registered,
                 "remaining_credits": remaining,
                 "registered_courses": student.registered_courses,
             },
-            calculation=f"max(0, {limit} - {student.current_registered_credits}) = {remaining}",
+            calculation=f"max(0, {limit} - {registered}) = {remaining}",
             ontology_terms=ontology.terms(),
-            horn_clause=ontology.horn_clause,
+            horn_clause=HORN_PROGRAM.listing([ontology.goal]),
             premises=[
                 Premise(
                     term="urd:annualCreditLimit",
@@ -182,9 +229,10 @@ class RuleEngine:
                     term="urd:registeredCredits",
                     label="履修登録単位数（ccso:hasRegistered の schema:numberOfCredits 合計）",
                     subject=student.iri,
-                    actual=student.current_registered_credits,
+                    actual=registered,
                 ),
             ],
+            proof=self._proof(solver, goal),
         )
 
     def get_graduation_credit_requirement(self) -> DecisionResult:
@@ -213,12 +261,15 @@ class RuleEngine:
         rule = self._rule("graduation_required_courses")
         ontology = self._ontology(rule)
         course_codes = [str(code) for code in self._value(rule, "required_courses")]
-        premises, missing = self._course_premises(student, course_codes, "ccso:hasCompleted")
+        iri = self._check_student(student)
+        solver = self.solver
+        goal = atom("meets_course_requirement", iri)
+        eligible = solver.holds(goal)
+        premises, missing = self._course_premises(solver, student, course_codes, "ccso:hasCompleted")
         completion = {
-            self.graph.course_label(code): code in student.completed_courses
-            for code in course_codes
+            self.graph.course_label(code): premise.satisfied
+            for code, premise in zip(course_codes, premises)
         }
-        eligible = not missing
         message = (
             "卒業に必要な必修科目をすべて修得しています。"
             if eligible
@@ -232,8 +283,9 @@ class RuleEngine:
             facts={"required_courses": completion},
             unmet_conditions=[f"{name}を修得していない" for name in missing],
             ontology_terms=ontology.terms(),
-            horn_clause=ontology.horn_clause,
+            horn_clause=HORN_PROGRAM.listing([ontology.goal]),
             premises=premises,
+            proof=self._proof(solver, goal),
         )
 
     def evaluate_graduation(self, student: Student) -> DecisionResult:
@@ -241,15 +293,20 @@ class RuleEngine:
         course_rule = self._rule("graduation_required_courses")
         required_credits = int(self._value(credit_rule, "required_credits"))
         course_codes = [str(code) for code in self._value(course_rule, "required_courses")]
+        iri = self._check_student(student)
+        solver = self.solver
+        earned = self._require(
+            solver.value(atom("urd:earnedCredits", iri, Var("Earned")), "Earned"), "修得単位数"
+        )
 
         unmet: list[str] = []
-        credits_satisfied = student.earned_credits >= required_credits
+        credits_satisfied = solver.holds(atom("meets_credit_requirement", iri))
         if not credits_satisfied:
-            shortage = required_credits - student.earned_credits
+            shortage = required_credits - earned
             unmet.append(f"卒業必要単位まで{shortage}単位不足")
 
         course_premises, missing = self._course_premises(
-            student, course_codes, "ccso:hasCompleted"
+            solver, student, course_codes, "ccso:hasCompleted"
         )
         unmet.extend(f"{name}を未修得" for name in missing)
 
@@ -258,7 +315,7 @@ class RuleEngine:
                 term="urd:earnedCredits",
                 label="修得単位数（ccso:hasCompleted の schema:numberOfCredits 合計）",
                 subject=student.iri,
-                actual=student.earned_credits,
+                actual=earned,
                 comparator=">=",
                 expected=required_credits,
                 satisfied=credits_satisfied,
@@ -266,7 +323,8 @@ class RuleEngine:
             *course_premises,
         ]
 
-        eligible = not unmet
+        goal = atom("eligible_to_graduate", iri)
+        eligible = solver.holds(goal)
         return DecisionResult(
             status=DecisionStatus.ELIGIBLE if eligible else DecisionStatus.NOT_ELIGIBLE,
             message=(
@@ -278,13 +336,13 @@ class RuleEngine:
             rule_references=[self._reference(credit_rule), self._reference(course_rule)],
             facts={
                 "required_credits": required_credits,
-                "earned_credits": student.earned_credits,
+                "earned_credits": earned,
                 "required_courses": {
-                    self.graph.course_label(code): code in student.completed_courses
-                    for code in course_codes
+                    self.graph.course_label(code): premise.satisfied
+                    for code, premise in zip(course_codes, course_premises)
                 },
             },
-            calculation=f"単位判定: {student.earned_credits} >= {required_credits}",
+            calculation=f"単位判定: {earned} >= {required_credits}",
             unmet_conditions=unmet,
             ontology_terms=sorted(
                 {
@@ -292,11 +350,9 @@ class RuleEngine:
                     *RULE_TYPE_ONTOLOGY["graduation_required_courses"].terms(),
                 }
             ),
-            horn_clause=(
-                "eligible_to_graduate(Student) :- "
-                "meets_credit_requirement(Student), meets_course_requirement(Student)."
-            ),
+            horn_clause=HORN_PROGRAM.listing(["eligible_to_graduate/1"]),
             premises=premises,
+            proof=self._proof(solver, goal),
         )
 
     def evaluate_thesis_eligibility(self, student: Student) -> DecisionResult:
@@ -305,17 +361,26 @@ class RuleEngine:
         minimum_year = int(self._value(rule, "minimum_year_of_study"))
         minimum_credits = int(self._value(rule, "minimum_earned_credits"))
         course_codes = [str(code) for code in self._value(rule, "required_courses")]
+        thesis = self._require(self._subject(rule), "卒業研究の科目")
+        iri = self._check_student(student)
+        solver = self.solver
+        year = self._require(
+            solver.value(atom("urd:yearOfStudy", iri, Var("Year")), "Year"), "学年"
+        )
+        earned = self._require(
+            solver.value(atom("urd:earnedCredits", iri, Var("Earned")), "Earned"), "修得単位数"
+        )
 
         unmet: list[str] = []
-        year_satisfied = student.year_of_study >= minimum_year
+        year_satisfied = solver.holds(atom("thesis_year_ok", iri, thesis))
         if not year_satisfied:
             unmet.append(f"{minimum_year}年生以上ではない")
-        credits_satisfied = student.earned_credits >= minimum_credits
+        credits_satisfied = solver.holds(atom("thesis_credits_ok", iri, thesis))
         if not credits_satisfied:
             unmet.append(f"修得単位が{minimum_credits}単位未満")
 
         course_premises, missing = self._course_premises(
-            student, course_codes, "ccso:hasCompleted"
+            solver, student, course_codes, "ccso:hasCompleted"
         )
         unmet.extend(f"{name}を未修得" for name in missing)
 
@@ -324,7 +389,7 @@ class RuleEngine:
                 term="urd:yearOfStudy",
                 label="学年",
                 subject=student.iri,
-                actual=student.year_of_study,
+                actual=year,
                 comparator=">=",
                 expected=minimum_year,
                 satisfied=year_satisfied,
@@ -333,7 +398,7 @@ class RuleEngine:
                 term="urd:earnedCredits",
                 label="修得単位数",
                 subject=student.iri,
-                actual=student.earned_credits,
+                actual=earned,
                 comparator=">=",
                 expected=minimum_credits,
                 satisfied=credits_satisfied,
@@ -341,7 +406,8 @@ class RuleEngine:
             *course_premises,
         ]
 
-        eligible = not unmet
+        goal = atom("eligible_to_register", iri, thesis)
+        eligible = solver.holds(goal)
         return DecisionResult(
             status=DecisionStatus.ELIGIBLE if eligible else DecisionStatus.NOT_ELIGIBLE,
             message=(
@@ -352,19 +418,96 @@ class RuleEngine:
             rule_ids=[rule.rule_id],
             rule_references=[self._reference(rule)],
             facts={
-                "year_of_study": student.year_of_study,
+                "year_of_study": year,
                 "minimum_year_of_study": minimum_year,
-                "earned_credits": student.earned_credits,
+                "earned_credits": earned,
                 "minimum_earned_credits": minimum_credits,
                 "prerequisite_courses": {
-                    self.graph.course_label(code): code in student.completed_courses
-                    for code in course_codes
+                    self.graph.course_label(code): premise.satisfied
+                    for code, premise in zip(course_codes, course_premises)
                 },
             },
             unmet_conditions=unmet,
             ontology_terms=ontology.terms(),
-            horn_clause=ontology.horn_clause,
+            horn_clause=HORN_PROGRAM.listing([ontology.goal]),
             premises=premises,
+            proof=self._proof(solver, goal),
+        )
+
+    def evaluate_first_year_requirement(self, student: Student) -> DecisionResult:
+        """履修規程第14条：第1年次に、卒業に必要な単位数の4分の1以上を修得しているか。"""
+        rule = self._rule("first_year_credit_requirement")
+        # 必要な単位数は卒業必要単位数から求めるので、そのルールも必要
+        credit_rule = self._rule("graduation_credit_requirement")
+        ontology = self._ontology(rule)
+        target_year = int(self._value(rule, "year_of_study"))
+        ratio = int(self._value(rule, "minimum_ratio_percent"))
+        required_credits = int(self._value(credit_rule, "required_credits"))
+        iri = self._check_student(student)
+        solver = self.solver
+        earned = self._require(
+            solver.value(atom("first_year_credits", iri, Var("Earned")), "Earned"),
+            "1年次の修得単位数",
+        )
+        minimum = self._require(
+            solver.value(atom("first_year_minimum", iri, Var("Minimum")), "Minimum"),
+            "1年次に修得すべき単位数",
+        )
+        goal = atom("meets_first_year_requirement", iri)
+        eligible = solver.holds(goal)
+        if eligible:
+            message = (
+                f"1年次の修得単位要件を満たしています（1年次の修得 {earned}単位／必要 {minimum}単位）。"
+            )
+            unmet: list[str] = []
+        else:
+            message = (
+                f"1年次の修得単位要件を満たしていません（1年次の修得 {earned}単位／必要 {minimum}単位）。"
+                "履修規程第14条第2項により修学指導の対象となります。"
+            )
+            unmet = [f"1年次の修得単位が{minimum - earned}単位不足"]
+        return DecisionResult(
+            status=DecisionStatus.ELIGIBLE if eligible else DecisionStatus.NOT_ELIGIBLE,
+            message=message,
+            rule_ids=[rule.rule_id, credit_rule.rule_id],
+            rule_references=[self._reference(rule), self._reference(credit_rule)],
+            facts={
+                "target_year_of_study": target_year,
+                "first_year_credits": earned,
+                "required_credits": required_credits,
+                "minimum_ratio_percent": ratio,
+                "minimum_credits": minimum,
+            },
+            calculation=(
+                f"ceiling({required_credits} × {ratio} / 100) = {minimum}、"
+                f"1年次の修得 {earned} >= {minimum}"
+            ),
+            unmet_conditions=unmet,
+            ontology_terms=sorted(
+                {
+                    *ontology.terms(),
+                    *RULE_TYPE_ONTOLOGY["graduation_credit_requirement"].terms(),
+                }
+            ),
+            horn_clause=HORN_PROGRAM.listing([ontology.goal]),
+            premises=[
+                Premise(
+                    term="urd:minimumCreditRatio",
+                    label="1年次に修得すべき単位数（卒業必要単位数 × 割合）",
+                    subject=self._subject(rule),
+                    actual=minimum,
+                ),
+                Premise(
+                    term="urd:atYearOfStudy",
+                    label="1年次に修得した単位数（修得の記録の schema:numberOfCredits 合計）",
+                    subject=student.iri,
+                    actual=earned,
+                    comparator=">=",
+                    expected=minimum,
+                    satisfied=eligible,
+                ),
+            ],
+            proof=self._proof(solver, goal),
         )
 
     def evaluate_personalized_notifications(
@@ -385,6 +528,7 @@ class RuleEngine:
             "not_contains": lambda actual, expected: expected not in actual,
         }
         ontology = RULE_TYPE_ONTOLOGY["personalized_notification"]
+        self._check_student(student)
 
         for rule in self.config.rules:
             if rule.rule_type != "personalized_notification" or not getattr(rule, "enabled", True):

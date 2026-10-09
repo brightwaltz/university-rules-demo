@@ -107,14 +107,15 @@ def test_rule_values_are_projected_onto_their_subject(graph):
     ).askAnswer
 
 
-def test_an_answer_document_is_valid_jsonld(engine, eligible_student):
+def test_an_answer_document_is_valid_jsonld(eligible_case):
     from src.answer_service import AnswerService
     from src.intent import RuleBasedIntentDetector
 
+    engine, student = eligible_case
     intent, decision = AnswerService(engine, RuleBasedIntentDetector()).answer(
-        "卒業できますか？", eligible_student
+        "卒業できますか？", student
     )
-    document = answer_to_jsonld("卒業できますか？", intent.value, decision, eligible_student)
+    document = answer_to_jsonld("卒業できますか？", intent.value, decision, student)
     rdf = RDFGraph().parse(data=json.dumps(document), format="json-ld")
 
     assert rdf.query(

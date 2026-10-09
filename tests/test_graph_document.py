@@ -164,6 +164,7 @@ def test_singleton_rule_types_come_from_a_hypernode():
         "graduation_credit_requirement",
         "graduation_required_courses",
         "thesis_eligibility",
+        "first_year_credit_requirement",
     }
     assert "personalized_notification" not in SINGLETON_RULE_TYPES
 
@@ -257,6 +258,28 @@ def test_close_match_to_unknown_term_is_rejected(tmp_path):
                 node["close_match"] = ["schema:doesNotExistHere"]
 
     with pytest.raises(GraphDocumentError, match="用語ノードがありません"):
+        GraphDocument(write_variant(tmp_path, mutate))
+
+
+def test_term_readings_use_only_the_two_argument_slots():
+    readings = {curie: getattr(GRAPH.term(curie), "reading", None) for curie in (
+        "ccso:enrolledIn", "schema:coursePrerequisites", "urd:earnedCredits",
+    )}
+    assert readings == {
+        "ccso:enrolledIn": "{1}は{2}に在籍している",
+        "schema:coursePrerequisites": "{2}は{1}の前提科目である",
+        "urd:earnedCredits": "{1}の修得単位数は{2}",
+    }
+
+
+@pytest.mark.parametrize("reading", ["{1}は{3}に在籍している", "{student}は{2}に在籍している", "{1}は{2"])
+def test_broken_term_reading_is_rejected(tmp_path, reading):
+    def mutate(document):
+        for node in document["nodes"]:
+            if node.get("curie") == "ccso:enrolledIn":
+                node["reading"] = reading
+
+    with pytest.raises(GraphDocumentError, match="reading の差し込み位置"):
         GraphDocument(write_variant(tmp_path, mutate))
 
 

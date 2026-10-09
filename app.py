@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 from datetime import date
 from pathlib import Path
@@ -8,6 +9,17 @@ from typing import Any
 import streamlit as st
 
 from src.answer_service import AnswerService
+from src.examples import (
+    EXAMPLE_RULE_LABELS,
+    EXAMPLE_RULE_TYPES,
+    ExampleRepository,
+    ExampleValidationError,
+    describe_student,
+    evaluate_example,
+    is_reviewed,
+    matches,
+)
+from src.horn_reading import proof_goal_key, read_predicate, read_rule_type
 from src.intent import RuleBasedIntentDetector
 from src.jsonld_export import answer_to_jsonld, effective_graph, notification_to_jsonld
 from src.knowledge_graph import KnowledgeGraph
@@ -30,6 +42,12 @@ from src.rule_repository import RuleRepository, RuleValidationError
 BASE_DIR = Path(__file__).resolve().parent
 GRAPH_PATH = BASE_DIR / "data" / "university_graph.jsonld"
 RULES_PATH = BASE_DIR / "data" / "rules.yaml"
+EXAMPLES_PATH = BASE_DIR / "data" / "examples.yaml"
+
+EXAMPLE_STATUS_LABELS = {"eligible": "満たす", "not_eligible": "満たさない", "unknown": "判定すべきでない"}
+EXAMPLE_VERDICT_LABELS = {"unreviewed": "未確認", "agree": "正しい", "disagree": "正しくない", "unsure": "わからない"}
+EXAMPLE_ORIGIN_LABELS = {"ai": "AI", "boundary": "境界値", "human": "担当者"}
+NO_STATUS_LABEL = "―"
 
 
 def build_services() -> tuple[KnowledgeGraph, RuleEngine, AnswerService, NotificationService]:
@@ -76,6 +94,41 @@ def show_premises(result: DecisionResult) -> None:
     st.dataframe(rows, width="stretch", hide_index=True)
 
 
+def show_clause_readings(readings: list[dict[str, Any]]) -> None:
+    """節の読み下し（「{head} のは、次のすべてが成り立つときです」＋番号つき条件）。"""
+    for reading in readings:
+        lines = [f"{reading['head']} のは、次のすべてが成り立つときです。"]
+        lines.extend(
+            f"{number}. {condition}"
+            for number, condition in enumerate(reading["conditions"], start=1)
+        )
+        st.markdown(lines[0] + "\n\n" + "\n".join(lines[1:]))
+
+
+def _proof_lines(node: dict[str, Any], depth: int, lines: list[str]) -> None:
+    mark = "✅" if node["proved"] else "❌"
+    detail = f"（{html.escape(str(node['detail']))}）" if node.get("detail") else ""
+    lines.append(
+        f'<div style="margin-left: {depth * 1.4}em">{mark} {html.escape(str(node.get("reading") or node["goal"]))}'
+        f"{detail} <small><code>{html.escape(str(node['goal']))}</code></small></div>"
+    )
+    for child in node["children"]:
+        _proof_lines(child, depth + 1, lines)
+
+
+def show_proof(proof: dict[str, Any]) -> None:
+    """証明木を ✅/❌ つきの字下げで示す。各行は読み下しを主に、形式表記を小さく併記する。"""
+    lines: list[str] = []
+    _proof_lines(proof, 0, lines)
+    # 通知の expander の中でも使うので、st.expander ではなく HTML の details で畳む
+    st.markdown(
+        "<details><summary><strong>証明木</strong>（処理系が実際にたどった導出）</summary>"
+        + "".join(lines)
+        + "</details>",
+        unsafe_allow_html=True,
+    )
+
+
 def show_decision_basis(result: DecisionResult) -> None:
     st.markdown("#### 判定根拠")
     if not result.rule_references:
@@ -92,6 +145,12 @@ def show_decision_basis(result: DecisionResult) -> None:
     if result.horn_clause:
         st.markdown("**このルールのHorn節**")
         st.code(result.horn_clause, language="prolog")
+    if result.proof:
+        key = proof_goal_key(result.proof)
+        if key:
+            st.markdown("**読み下し**")
+            show_clause_readings(read_predicate(key, graph))
+        show_proof(result.proof)
     show_premises(result)
     show_ontology_terms(result)
 
@@ -219,6 +278,21 @@ def rule_form_fields(
         )
         payload["required_courses"] = _course_multiselect(
             "前提科目", defaults, graph, f"{prefix}_thesis_courses"
+        )
+    elif rule_type == "first_year_credit_requirement":
+        payload["year_of_study"] = st.number_input(
+            "対象年次",
+            min_value=1,
+            max_value=6,
+            value=int(defaults.get("year_of_study", 1)),
+            key=f"{prefix}_target_year",
+        )
+        payload["minimum_ratio_percent"] = st.number_input(
+            "卒業必要単位数に対する最低修得割合（%）",
+            min_value=1,
+            max_value=100,
+            value=int(defaults.get("minimum_ratio_percent", 25)),
+            key=f"{prefix}_minimum_ratio",
         )
     elif rule_type == "personalized_notification":
         payload["enabled"] = st.checkbox(
@@ -471,10 +545,29 @@ def show_ontology_section(graph: KnowledgeGraph, repository: RuleRepository) -> 
             hide_index=True,
         )
 
-    with st.expander("ルール種別ごとのHorn節"):
+    with st.expander("ルール種別ごとの「規程の本文 → Horn節 → 読み下し」"):
+        rules = repository.list_rules()
         for rule_type, ontology in RULE_TYPE_ONTOLOGY.items():
-            st.markdown(f"**{ontology.label}**（`{rule_type}`）")
+            st.markdown(f"#### {ontology.label}（`{rule_type}`）")
+            articles = [
+                graph.legislation(getattr(rule, "legislation", None))
+                for rule in rules
+                if rule.rule_type == rule_type
+            ]
+            texts = [article for article in articles if article is not None and article.text]
+            st.markdown("**規程の本文（schema:text）**")
+            if texts:
+                for article in texts:
+                    st.markdown(f"> {article.citation}：{article.text}")
+            else:
+                st.caption("本文を持つ条文に結び付いたルールがありません。")
+            st.markdown("**Horn節**")
             st.code(ontology.horn_clause, language="prolog")
+            st.markdown("**読み下し**")
+            if ontology.executable:
+                show_clause_readings(read_rule_type(rule_type, graph))
+            else:
+                st.caption("この種別の節は表示用で、処理系では実行しません。")
 
     with st.expander("科目カタログ（schema:Course）"):
         st.dataframe(
@@ -502,6 +595,229 @@ def show_ontology_section(graph: KnowledgeGraph, repository: RuleRepository) -> 
         "ルールの値は rules.yaml が唯一の情報源です。"
         "書き出すときだけ、対象ノードへ重ねた「実効グラフ」として1つの文書にまとめます。"
     )
+
+
+@st.cache_data(show_spinner=False)
+def evaluate_examples(
+    examples_path: str, examples_mtime: float, rules_path: str, rules_mtime: float
+) -> list[dict[str, Any]]:
+    """例題ごとのシステムの判定。キャッシュのキーは examples.yaml と rules.yaml の更新時刻。"""
+    base_graph = KnowledgeGraph(GRAPH_PATH)
+    rows = []
+    for example in ExampleRepository(examples_path, base_graph).load():
+        outcome = evaluate_example(example, rules_path, base_graph)
+        rows.append(
+            {
+                "example": example,
+                "description": describe_student(example, base_graph),
+                "outcome": outcome.model_dump(mode="json"),
+                "matches": matches(example, outcome),
+            }
+        )
+    return rows
+
+
+def _example_state(row: dict[str, Any]) -> int:
+    """並び順：未確認かつ不一致 → 未確認 → 確認済み。"""
+    if is_reviewed(row["example"]):
+        return 2
+    return 1 if row["matches"] else 0
+
+
+def _example_rule_texts(rule_type: str, repository: RuleRepository, graph: KnowledgeGraph) -> list[str]:
+    _, _, text_types = EXAMPLE_RULE_TYPES[rule_type]
+    texts = []
+    for rule in repository.list_rules():
+        if rule.rule_type not in text_types:
+            continue
+        article = graph.legislation(getattr(rule, "legislation", None))
+        if article is not None and article.text:
+            texts.append(f"> {article.citation}：{article.text}")
+    return texts
+
+
+def show_example_section(repository: RuleRepository, graph: KnowledgeGraph) -> None:
+    st.header("6. 例題で確かめる（業務担当者向け）")
+    st.markdown(
+        "AI が規程の本文から作った例題と、境界値の例題です。  \n"
+        "各例題の『状況』と『結論』を見て、業務として正しいかを選んでください。Horn 節を読む必要はありません。  \n"
+        "確認済みの例題は、以後の自動テストでシステムの判定と照合されます。"
+    )
+    flash = st.session_state.pop("example_flash", None)
+    if flash:
+        st.success(flash)
+
+    try:
+        examples_mtime = EXAMPLES_PATH.stat().st_mtime
+        rows = evaluate_examples(
+            str(EXAMPLES_PATH), examples_mtime, str(RULES_PATH), RULES_PATH.stat().st_mtime
+        )
+    except (OSError, ValueError) as exc:
+        st.error(f"例題を読み込めませんでした：{exc}")
+        return
+
+    reviewed = sum(1 for row in rows if is_reviewed(row["example"]))
+    matched = sum(1 for row in rows if row["matches"])
+    count_cols = st.columns(5)
+    count_cols[0].metric("全件", f"{len(rows)} 件")
+    count_cols[1].metric("システムと一致", f"{matched} 件")
+    count_cols[2].metric("不一致", f"{len(rows) - matched} 件")
+    count_cols[3].metric("確認済み", f"{reviewed} 件")
+    count_cols[4].metric("未確認", f"{len(rows) - reviewed} 件")
+
+    filter_cols = st.columns(3)
+    rule_filter = filter_cols[0].selectbox(
+        "ルール",
+        options=["all", *EXAMPLE_RULE_LABELS],
+        format_func=lambda key: "すべて" if key == "all" else EXAMPLE_RULE_LABELS[key],
+        key="example_filter_rule",
+    )
+    origin_filter = filter_cols[1].selectbox(
+        "出どころ",
+        options=["all", *EXAMPLE_ORIGIN_LABELS],
+        format_func=lambda key: "すべて" if key == "all" else EXAMPLE_ORIGIN_LABELS[key],
+        key="example_filter_origin",
+    )
+    state_filters = {
+        "all": "すべて",
+        "unreviewed_mismatch": "未確認かつ不一致",
+        "unreviewed": "未確認",
+        "reviewed": "確認済み",
+        "mismatch": "システムと不一致",
+    }
+    state_filter = filter_cols[2].selectbox(
+        "状態", options=list(state_filters), format_func=state_filters.get, key="example_filter_state"
+    )
+
+    def visible(row: dict[str, Any]) -> bool:
+        example = row["example"]
+        if rule_filter != "all" and example["rule_type"] != rule_filter:
+            return False
+        if origin_filter != "all" and example["origin"] != origin_filter:
+            return False
+        return {
+            "all": True,
+            "unreviewed_mismatch": _example_state(row) == 0,
+            "unreviewed": not is_reviewed(example),
+            "reviewed": is_reviewed(example),
+            "mismatch": not row["matches"],
+        }[state_filter]
+
+    shown = sorted((row for row in rows if visible(row)), key=_example_state)
+    if not shown:
+        st.info("条件に合う例題はありません。")
+        return
+
+    table = []
+    for row in shown:
+        example = row["example"]
+        review = example.get("review") or {}
+        table.append(
+            {
+                "例題ID": example["id"],
+                "ルール": EXAMPLE_RULE_LABELS[example["rule_type"]],
+                "状況": row["description"],
+                "AIの予想": EXAMPLE_STATUS_LABELS[example["expected"]["status"]],
+                "システムの判定": EXAMPLE_STATUS_LABELS.get(row["outcome"]["status"], row["outcome"]["status"]),
+                "一致": "✅" if row["matches"] else "❌",
+                "担当者の判断": EXAMPLE_VERDICT_LABELS[review.get("verdict", "unreviewed")],
+                "正しい結論": EXAMPLE_STATUS_LABELS.get(review.get("correct_status"), NO_STATUS_LABEL),
+                "メモ": review.get("note") or "",
+            }
+        )
+    locked = ["例題ID", "ルール", "状況", "AIの予想", "システムの判定", "一致"]
+    edited = st.data_editor(
+        table,
+        hide_index=True,
+        width="stretch",
+        disabled=locked,
+        column_config={
+            "担当者の判断": st.column_config.SelectboxColumn(
+                "担当者の判断", options=list(EXAMPLE_VERDICT_LABELS.values()), required=True
+            ),
+            "正しい結論": st.column_config.SelectboxColumn(
+                "正しい結論",
+                options=[NO_STATUS_LABEL, *EXAMPLE_STATUS_LABELS.values()],
+                required=True,
+                help="「正しくない」としたときだけ選びます。",
+            ),
+            "メモ": st.column_config.TextColumn("メモ"),
+        },
+        key=f"example_editor_{examples_mtime}_{rule_filter}_{origin_filter}_{state_filter}",
+    )
+
+    if st.button("確認結果を保存", type="primary", key="save_example_reviews"):
+        verdict_by_label = {label: key for key, label in EXAMPLE_VERDICT_LABELS.items()}
+        status_by_label = {label: key for key, label in EXAMPLE_STATUS_LABELS.items()}
+        by_id = {row["example"]["id"]: row["example"] for row in shown}
+        records = edited.to_dict("records") if hasattr(edited, "to_dict") else list(edited)
+        updates: dict[str, dict[str, Any]] = {}
+        missing: list[str] = []
+        for record in records:
+            example = by_id[record["例題ID"]]
+            review = example.get("review") or {}
+            verdict = verdict_by_label.get(record["担当者の判断"], "unreviewed")
+            correct = status_by_label.get(record["正しい結論"]) if verdict == "disagree" else None
+            note = record.get("メモ")
+            note = note.strip() if isinstance(note, str) and note.strip() else None
+            if verdict == "disagree" and correct is None:
+                missing.append(example["id"])
+                continue
+            if (verdict, correct, note) == (
+                review.get("verdict"),
+                review.get("correct_status"),
+                review.get("note"),
+            ):
+                continue
+            updates[example["id"]] = {
+                **review,
+                "verdict": verdict,
+                "correct_status": correct,
+                "note": note,
+                "reviewed_on": None if verdict == "unreviewed" else date.today(),
+            }
+        if missing:
+            st.error(
+                "「正しくない」とした例題は、正しい結論を選んでください（保存していません）："
+                + "、".join(missing)
+            )
+        elif not updates:
+            st.info("変更はありません。")
+        else:
+            try:
+                ExampleRepository(EXAMPLES_PATH, graph).save_reviews(updates)
+                st.session_state["example_flash"] = f"{len(updates)}件の確認結果を保存しました。"
+                st.rerun()
+            except (ExampleValidationError, OSError) as exc:
+                st.error(f"保存できませんでした：{exc}")
+
+    rows_by_id = {row["example"]["id"]: row for row in shown}
+    selected_id = st.selectbox(
+        "詳しく見る例題",
+        options=list(rows_by_id),
+        format_func=lambda example_id: f"{example_id}　{rows_by_id[example_id]['example']['title']}",
+        key="example_detail",
+    )
+    row = rows_by_id[selected_id]
+    example = row["example"]
+    outcome = row["outcome"]
+    st.markdown(f"**状況**：{row['description']}")
+    st.markdown("**規程の本文（schema:text）**")
+    for text in _example_rule_texts(example["rule_type"], repository, graph):
+        st.markdown(text)
+    origin = EXAMPLE_ORIGIN_LABELS.get(example["origin"], example["origin"])
+    st.markdown(
+        f"**{origin}の予想**：{EXAMPLE_STATUS_LABELS[example['expected']['status']]}"
+        f"（{example['expected'].get('reason') or '理由の記載なし'}）"
+    )
+    if example.get("ai_note"):
+        st.warning(f"AI が気づいた解釈上の疑問：{example['ai_note']}", icon="⚠️")
+    st.markdown("**システムの判定**")
+    show_status_answer(
+        DecisionResult(status=DecisionStatus(outcome["status"]), message=outcome["message"])
+    )
+    if outcome.get("proof"):
+        show_proof(outcome["proof"])
 
 
 st.set_page_config(
@@ -595,6 +911,22 @@ st.caption(
     "単位数は ccso:hasCompleted / ccso:hasRegistered をたどって "
     "schema:numberOfCredits を合計した導出値です。グラフに数値は書かれていません。"
 )
+completion_records = graph.completion_records(student.iri) if student.iri else []
+if completion_records:
+    with st.expander("年次別の修得単位（schema:AchieveAction）"):
+        st.dataframe(
+            [
+                {
+                    "年度": record["academic_year"],
+                    "年次": f"{record['year_of_study']}年次",
+                    "修得単位": record["credits"],
+                    "科目数": len(record["course_codes"]),
+                }
+                for record in completion_records
+            ],
+            width="stretch",
+            hide_index=True,
+        )
 
 st.header("2. あなたへのお知らせ")
 notifications = notification_service.generate(student)
@@ -614,7 +946,10 @@ for notice in notifications:
         st.json(notification_to_jsonld(notice, student))
 
 st.header("3. 質問アシスタント")
-st.caption("例：あと何単位履修できますか？ / 卒業できますか？ / 卒業研究を履修できますか？")
+st.caption(
+    "例：あと何単位履修できますか？ / 卒業できますか？ / 卒業研究を履修できますか？"
+    " / 1年次の単位要件は満たしていますか？"
+)
 with st.form("question_form"):
     question = st.text_input("質問してください", placeholder="大学の規則について質問を入力")
     submitted = st.form_submit_button("規則に基づいて判定", type="primary")
@@ -648,8 +983,9 @@ if "last_answer" in st.session_state:
 
 show_rule_manager(repository, graph)
 show_ontology_section(graph, repository)
+show_example_section(repository, graph)
 
-st.header("6. 研究用情報")
+st.header("7. 研究用情報")
 with st.expander("選択中の学生データ（Studentへの射影）"):
     st.json(student.model_dump(mode="json"))
 with st.expander("グラフ上の学生ノード（schema:Person）"):

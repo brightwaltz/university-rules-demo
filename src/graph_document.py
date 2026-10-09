@@ -16,6 +16,7 @@ hypernode は「メンバーを持つノード」である。ノードとして 
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -30,6 +31,8 @@ class GraphDocumentError(ValueError):
 NODE_KINDS = {"concept", "term", "rule-type", "vocabulary"}
 HYPERNODE_KINDS = {"layer", "domain", "rule-group", "rationale"}
 TERM_KINDS = {"class", "property"}
+#: term の ``reading`` で使える差し込み位置
+TERM_READING_SLOT = re.compile(r"\{[12]\}")
 
 #: エッジの種類は文書の ``edge_kinds`` で定義する。ここには持たない。
 
@@ -208,6 +211,14 @@ class GraphDocument:
                 term_kind = getattr(node, "term_kind", None)
                 if term_kind not in TERM_KINDS:
                     raise GraphDocumentError(f"term_kind が不正です: {node.id}")
+            reading = getattr(node, "reading", None)
+            if node.kind == "term" and reading is not None:
+                # 読み下しの型に差し込めるのは引数の位置 {1}・{2} だけ
+                rest = TERM_READING_SLOT.sub("", reading) if isinstance(reading, str) else "{"
+                if "{" in rest or "}" in rest:
+                    raise GraphDocumentError(
+                        f"term の reading の差し込み位置は {{1}}・{{2}} だけです: {node.id}"
+                    )
 
     def _validate_relations(self) -> None:
         for hypernode in self.hypernodes:
