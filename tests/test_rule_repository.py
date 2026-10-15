@@ -69,10 +69,11 @@ def test_duplicate_rule_id_is_rejected_without_changing_file(repository, editabl
 
 
 def test_personalized_rule_generates_notification(
-    repository, editable_rules_path, graph, eligible_student
+    repository, editable_rules_path, student_on_graph, eligible_profile
 ):
     repository.create(personalized_payload())
-    notices = NotificationService(RuleEngine(editable_rules_path, graph)).generate(eligible_student)
+    engine, student = student_on_graph(eligible_profile, rules_path=editable_rules_path)
+    notices = NotificationService(engine).generate(student)
 
     notice = next(item for item in notices if item.notification_id == "NOTICE-RULE-NOTICE-001")
     assert notice.message == "卒業準備を確認してください。"
@@ -80,13 +81,13 @@ def test_personalized_rule_generates_notification(
 
 
 def test_deleting_required_rule_returns_unknown_instead_of_crashing(
-    repository, editable_rules_path, graph, eligible_student
+    repository, editable_rules_path, student_on_graph, eligible_profile
 ):
     repository.delete("RULE-CREDIT-001")
-    engine = RuleEngine(editable_rules_path, graph)
+    engine, student = student_on_graph(eligible_profile, rules_path=editable_rules_path)
     service = AnswerService(engine, RuleBasedIntentDetector())
 
-    _, result = service.answer("あと何単位履修できますか？", eligible_student)
+    _, result = service.answer("あと何単位履修できますか？", student)
     assert result.status == DecisionStatus.UNKNOWN
     assert "判定できません" in result.message
 
@@ -161,3 +162,69 @@ def test_course_condition_rejects_scalar_operator(repository):
     ]
     with pytest.raises(RuleValidationError, match="contains または not_contains"):
         repository.create(payload)
+
+
+# --- 1年次の修得単位要件（履修規程 第14条） -----------------------------------
+
+
+def first_year_payload(**overrides) -> dict:
+    payload = {
+        "rule_id": "RULE-FIRSTYEAR-001",
+        "rule_type": "first_year_credit_requirement",
+        "title": "1年次の修得単位要件",
+        "source": "2026年度履修規程 第14条",
+        "subject": "urdi:program/engineering-2026",
+        "legislation": "urdi:legislation/risyu-kitei-2026/art14",
+        "year_of_study": 1,
+        "minimum_ratio_percent": 25,
+    }
+    payload.update(overrides)
+    return payload
+
+
+def test_first_year_rule_is_loaded_from_rules_yaml(repository):
+    rule = repository.get("RULE-FIRSTYEAR-001")
+    assert rule.rule_type == "first_year_credit_requirement"
+    assert rule.year_of_study == 1
+    assert rule.minimum_ratio_percent == 25
+    assert rule.legislation == "urdi:legislation/risyu-kitei-2026/art14"
+
+
+def test_first_year_rule_can_be_saved_with_validation(repository):
+    repository.delete("RULE-FIRSTYEAR-001")
+    created = repository.create(first_year_payload(year_of_study="2", minimum_ratio_percent="30"))
+    assert created.year_of_study == 2
+    assert created.minimum_ratio_percent == 30
+
+    updated = repository.update("RULE-FIRSTYEAR-001", first_year_payload(minimum_ratio_percent=100))
+    assert updated.minimum_ratio_percent == 100
+    assert repository.get("RULE-FIRSTYEAR-001").minimum_ratio_percent == 100
+
+
+def test_first_year_rule_is_a_singleton(repository):
+    with pytest.raises(RuleValidationError, match="1件だけ"):
+        repository.create(first_year_payload(rule_id="RULE-FIRSTYEAR-002"))
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"year_of_study": 0}, "対象年次は1〜6"),
+        ({"year_of_study": 7}, "対象年次は1〜6"),
+        ({"year_of_study": "一"}, "対象年次は整数"),
+        ({"minimum_ratio_percent": 0}, r"最低修得割合（%）は1〜100"),
+        ({"minimum_ratio_percent": 101}, r"最低修得割合（%）は1〜100"),
+        ({"minimum_ratio_percent": None}, r"最低修得割合（%）は整数"),
+        ({"subject": "urdi:course/REQ-A"}, "対象は schema:EducationalOccupationalProgram"),
+        ({"legislation": ""}, "根拠条文（legislation）は必須"),
+        ({"legislation": "urdi:legislation/risyu-kitei-2026/art99"}, "根拠条文がナレッジグラフにありません"),
+    ],
+)
+def test_invalid_first_year_rule_is_rejected_without_changing_file(
+    repository, editable_rules_path, overrides, message
+):
+    repository.delete("RULE-FIRSTYEAR-001")
+    before = editable_rules_path.read_text(encoding="utf-8")
+    with pytest.raises(RuleValidationError, match=message):
+        repository.create(first_year_payload(**overrides))
+    assert editable_rules_path.read_text(encoding="utf-8") == before

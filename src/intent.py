@@ -13,6 +13,7 @@ class Intent(str, Enum):
     GRADUATION_CREDIT_REQUIREMENT = "graduation_credit_requirement"
     REQUIRED_COURSES = "required_courses"
     THESIS_ELIGIBILITY = "thesis_eligibility"
+    FIRST_YEAR_REQUIREMENT = "first_year_requirement"
     UNKNOWN = "unknown"
 
 
@@ -30,6 +31,12 @@ class RuleBasedIntentDetector:
 
         if "卒業研究" in text or "卒研" in text:
             return Intent.THESIS_ELIGIBILITY
+
+        if "修学指導" in text or (
+            any(word in text for word in ("1年次", "一年次", "1年生のうち", "1年目"))
+            and "単位" in text
+        ):
+            return Intent.FIRST_YEAR_REQUIREMENT
 
         if ("履修登録" in text or "登録" in text) and any(
             word in text for word in ("いつまで", "期限", "締切", "しめきり")

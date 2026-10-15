@@ -13,6 +13,7 @@
   <nav class="site-nav">
     <a href="index.html">デモ</a>
     <a href="graph.html" aria-current="page">オントロジーグラフ</a>
+    <a href="examples.html">例題チェック</a>
   </nav>
 </header>
 
@@ -189,6 +190,13 @@
    "note": "closeMatch の表明に使う。"
   },
   {
+   "prefix": "rdf",
+   "iri": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+   "label": "RDF",
+   "role": "support",
+   "note": "Horn節で rdf:type(Node, Class) と書くのに使う（JSON-LD の @type は rdf:type）。"
+  },
+  {
    "prefix": "rdfs",
    "iri": "http://www.w3.org/2000/01/rdf-schema#",
    "label": "RDFS",
@@ -302,6 +310,11 @@
    "label": "修得単位数の合計"
   },
   {
+   "id": "concept/completion-time",
+   "kind": "concept",
+   "label": "単位修得の時期"
+  },
+  {
    "id": "concept/legislation",
    "kind": "concept",
    "label": "学則・履修規程"
@@ -400,11 +413,34 @@
    "term_kind": "class"
   },
   {
+   "id": "term/schema:AchieveAction",
+   "kind": "term",
+   "label": "達成行為（単位修得の記録）",
+   "curie": "schema:AchieveAction",
+   "term_kind": "class"
+  },
+  {
    "id": "term/schema:actionStatus",
    "kind": "term",
    "label": "行為の状態",
    "curie": "schema:actionStatus",
    "term_kind": "property"
+  },
+  {
+   "id": "term/schema:agent",
+   "kind": "term",
+   "label": "行為者",
+   "curie": "schema:agent",
+   "term_kind": "property",
+   "reading": "{1}を行ったのは{2}"
+  },
+  {
+   "id": "term/schema:object",
+   "kind": "term",
+   "label": "行為の対象",
+   "curie": "schema:object",
+   "term_kind": "property",
+   "reading": "{1}の対象は{2}"
   },
   {
    "id": "term/schema:applicationDeadline",
@@ -419,6 +455,7 @@
    "label": "単位数",
    "curie": "schema:numberOfCredits",
    "term_kind": "property",
+   "reading": "{1}の単位数は{2}",
    "note": "domain は Course と EducationalOccupationalProgram のみ。Person には付けられない。"
   },
   {
@@ -433,7 +470,8 @@
    "kind": "term",
    "label": "科目の前提",
    "curie": "schema:coursePrerequisites",
-   "term_kind": "property"
+   "term_kind": "property",
+   "reading": "{2}は{1}の前提科目である"
   },
   {
    "id": "term/schema:programPrerequisites",
@@ -532,21 +570,24 @@
    "kind": "term",
    "label": "在籍している",
    "curie": "ccso:enrolledIn",
-   "term_kind": "property"
+   "term_kind": "property",
+   "reading": "{1}は{2}に在籍している"
   },
   {
    "id": "term/ccso:hasCompleted",
    "kind": "term",
    "label": "修得した",
    "curie": "ccso:hasCompleted",
-   "term_kind": "property"
+   "term_kind": "property",
+   "reading": "{1}は{2}を修得している"
   },
   {
    "id": "term/ccso:hasRegistered",
    "kind": "term",
    "label": "履修登録した",
    "curie": "ccso:hasRegistered",
-   "term_kind": "property"
+   "term_kind": "property",
+   "reading": "{1}は{2}を履修登録している"
   },
   {
    "id": "term/ccso:hasPrerequisite",
@@ -610,6 +651,7 @@
    "label": "学年",
    "curie": "urd:yearOfStudy",
    "term_kind": "property",
+   "reading": "{1}の学年は{2}",
    "comment": "学生が在籍している年次。schema.org・CCSO ともに該当用語が無い。"
   },
   {
@@ -618,7 +660,15 @@
    "label": "修得単位数",
    "curie": "urd:earnedCredits",
    "term_kind": "property",
-   "comment": "ccso:hasCompleted で結ばれた科目の schema:numberOfCredits の合計。 schema:numberOfCredits は Person を domain に取れないため別用語とした。"
+   "reading": "{1}の修得単位数は{2}",
+   "comment": "ccso:hasCompleted で結ばれた科目の schema:numberOfCredits の合計。 schema:numberOfCredits は Person を domain に取れないため別用語とした。",
+   "horn_clause": "urd:earnedCredits(Student, Total) :-\n    rdf:type(Student, schema:Person),\n    aggregate_all(sum(Credits),\n                  (ccso:hasCompleted(Student, Course), schema:numberOfCredits(Course, Credits)),\n                  Total).\n",
+   "variables": {
+    "Student": "学生",
+    "Total": "修得単位数",
+    "Course": "科目",
+    "Credits": "単位数"
+   }
   },
   {
    "id": "term/urd:registeredCredits",
@@ -626,7 +676,15 @@
    "label": "履修登録単位数",
    "curie": "urd:registeredCredits",
    "term_kind": "property",
-   "comment": "ccso:hasRegistered で結ばれた科目の schema:numberOfCredits の合計。"
+   "reading": "{1}の履修登録単位数は{2}",
+   "comment": "ccso:hasRegistered で結ばれた科目の schema:numberOfCredits の合計。",
+   "horn_clause": "urd:registeredCredits(Student, Total) :-\n    rdf:type(Student, schema:Person),\n    aggregate_all(sum(Credits),\n                  (ccso:hasRegistered(Student, Course), schema:numberOfCredits(Course, Credits)),\n                  Total).\n",
+   "variables": {
+    "Student": "学生",
+    "Total": "履修登録単位数",
+    "Course": "科目",
+    "Credits": "単位数"
+   }
   },
   {
    "id": "term/urd:annualCreditLimit",
@@ -634,6 +692,7 @@
    "label": "年間履修上限単位数",
    "curie": "urd:annualCreditLimit",
    "term_kind": "property",
+   "reading": "{1}の年間履修上限は{2}",
    "comment": "1年度に履修登録できる単位数の上限。schema.org に該当用語が無い。"
   },
   {
@@ -642,6 +701,7 @@
    "label": "卒業必修科目",
    "curie": "urd:requiredCourse",
    "term_kind": "property",
+   "reading": "{2}は{1}の卒業必修科目である",
    "comment": "課程を修了するために修得が必要な科目。 schema:programPrerequisites は入学要件を指すため同一視しない。",
    "close_match": [
     "schema:programPrerequisites",
@@ -654,6 +714,7 @@
    "label": "履修に必要な最低学年",
    "curie": "urd:minimumYearOfStudy",
    "term_kind": "property",
+   "reading": "{1}の履修に必要な学年は{2}",
    "comment": "科目を履修登録するために必要な最低年次。"
   },
   {
@@ -662,10 +723,38 @@
    "label": "履修に必要な最低修得単位数",
    "curie": "urd:minimumEarnedCredits",
    "term_kind": "property",
+   "reading": "{1}の履修に必要な修得単位数は{2}",
    "comment": "科目を履修登録するために必要な修得単位数の下限。",
    "close_match": [
     "schema:coursePrerequisites"
    ]
+  },
+  {
+   "id": "term/urd:atYearOfStudy",
+   "kind": "term",
+   "label": "修得時の学年",
+   "curie": "urd:atYearOfStudy",
+   "term_kind": "property",
+   "reading": "{1}の時点の学年は{2}",
+   "comment": "行為（単位修得の記録など）が行われた時点での学生の学年。urd:yearOfStudy が学生の現在の学年を表すのに対し、こちらは schema:AchieveAction などの行為ノードに付ける。"
+  },
+  {
+   "id": "term/urd:targetYearOfStudy",
+   "kind": "term",
+   "label": "対象年次",
+   "curie": "urd:targetYearOfStudy",
+   "term_kind": "property",
+   "reading": "{1}の要件の対象年次は{2}",
+   "comment": "その要件が対象とする学年。1年次の修得単位要件では 1。"
+  },
+  {
+   "id": "term/urd:minimumCreditRatio",
+   "kind": "term",
+   "label": "最低修得割合（%）",
+   "curie": "urd:minimumCreditRatio",
+   "term_kind": "property",
+   "reading": "{1}の最低修得割合（%）は{2}",
+   "comment": "卒業に必要な単位数に対する、修得すべき単位数の割合（百分率）。"
   },
   {
    "id": "term/urd:evaluationDate",
@@ -872,6 +961,7 @@
    "evaluated_terms": [
     "urd:evaluationDate"
    ],
+   "executable": false,
    "horn_clause": "registration_deadline(Program, Deadline, DaysLeft) :- schema:applicationDeadline(Program, Deadline), urd:evaluationDate(Today), DaysLeft is Deadline - Today."
   },
   {
@@ -887,7 +977,18 @@
     "ccso:hasRegistered",
     "schema:numberOfCredits"
    ],
-   "horn_clause": "remaining_credits(Student, Remaining) :- ccso:enrolledIn(Student, Program), urd:annualCreditLimit(Program, Limit), urd:registeredCredits(Student, Registered), Remaining is max(0, Limit - Registered)."
+   "goal": "remaining_credits/2",
+   "horn_clause": "remaining_credits(Student, Remaining) :-\n    ccso:enrolledIn(Student, Program),\n    urd:annualCreditLimit(Program, Limit),\n    urd:registeredCredits(Student, Registered),\n    Remaining is max(0, Limit - Registered).\n",
+   "readings": {
+    "remaining_credits/2": "{1}があと履修登録できる単位数は{2}"
+   },
+   "variables": {
+    "Student": "学生",
+    "Program": "課程",
+    "Limit": "年間履修上限",
+    "Registered": "履修登録済みの単位数",
+    "Remaining": "残り履修可能単位数"
+   }
   },
   {
    "id": "rule-type/graduation_credit_requirement",
@@ -901,7 +1002,18 @@
    "evaluated_terms": [
     "urd:earnedCredits"
    ],
-   "horn_clause": "meets_credit_requirement(Student) :- ccso:enrolledIn(Student, Program), schema:numberOfCredits(Program, Required), urd:earnedCredits(Student, Earned), Earned >= Required."
+   "goal": "meets_credit_requirement/1",
+   "horn_clause": "meets_credit_requirement(Student) :-\n    ccso:enrolledIn(Student, Program),\n    schema:numberOfCredits(Program, Required),\n    urd:earnedCredits(Student, Earned),\n    Earned >= Required.\n\n% 卒業判定は、単位の要件（第32条第1項）と必修科目の要件（同第2項）の組み合わせ\neligible_to_graduate(Student) :-\n    meets_credit_requirement(Student),\n    meets_course_requirement(Student).\n",
+   "readings": {
+    "meets_credit_requirement/1": "{1}が卒業に必要な単位数を修得している",
+    "eligible_to_graduate/1": "{1}が卒業要件を満たしている"
+   },
+   "variables": {
+    "Student": "学生",
+    "Program": "課程",
+    "Required": "必要な単位数",
+    "Earned": "修得単位数"
+   }
   },
   {
    "id": "rule-type/graduation_required_courses",
@@ -915,7 +1027,16 @@
    "evaluated_terms": [
     "ccso:hasCompleted"
    ],
-   "horn_clause": "meets_course_requirement(Student) :- ccso:enrolledIn(Student, Program), forall(urd:requiredCourse(Program, Course), ccso:hasCompleted(Student, Course))."
+   "goal": "meets_course_requirement/1",
+   "horn_clause": "meets_course_requirement(Student) :-\n    ccso:enrolledIn(Student, Program),\n    forall(urd:requiredCourse(Program, Course),\n           ccso:hasCompleted(Student, Course)).\n",
+   "readings": {
+    "meets_course_requirement/1": "{1}が卒業必修科目をすべて修得している"
+   },
+   "variables": {
+    "Student": "学生",
+    "Program": "課程",
+    "Course": "必修科目"
+   }
   },
   {
    "id": "rule-type/thesis_eligibility",
@@ -933,7 +1054,60 @@
     "urd:earnedCredits",
     "ccso:hasCompleted"
    ],
-   "horn_clause": "eligible_to_register(Student, Thesis) :- urd:minimumYearOfStudy(Thesis, MinYear), urd:yearOfStudy(Student, Year), Year >= MinYear, urd:minimumEarnedCredits(Thesis, MinCredits), urd:earnedCredits(Student, Earned), Earned >= MinCredits, forall(schema:coursePrerequisites(Thesis, Course), ccso:hasCompleted(Student, Course))."
+   "goal": "eligible_to_register/2",
+   "horn_clause": "eligible_to_register(Student, Thesis) :-\n    thesis_year_ok(Student, Thesis),\n    thesis_credits_ok(Student, Thesis),\n    thesis_prerequisites_ok(Student, Thesis).\n\nthesis_year_ok(Student, Thesis) :-\n    urd:minimumYearOfStudy(Thesis, MinYear),\n    urd:yearOfStudy(Student, Year),\n    Year >= MinYear.\n\nthesis_credits_ok(Student, Thesis) :-\n    urd:minimumEarnedCredits(Thesis, MinCredits),\n    urd:earnedCredits(Student, Earned),\n    Earned >= MinCredits.\n\nthesis_prerequisites_ok(Student, Thesis) :-\n    rdf:type(Student, schema:Person),\n    rdf:type(Thesis, schema:Course),\n    forall(schema:coursePrerequisites(Thesis, Course),\n           ccso:hasCompleted(Student, Course)).\n",
+   "readings": {
+    "eligible_to_register/2": "{1}が{2}を履修できる",
+    "thesis_year_ok/2": "{1}の学年が、{2}の履修に必要な学年以上である",
+    "thesis_credits_ok/2": "{1}の修得単位数が、{2}の履修に必要な単位数以上である",
+    "thesis_prerequisites_ok/2": "{1}が、{2}の前提科目をすべて修得している"
+   },
+   "variables": {
+    "Student": "学生",
+    "Thesis": "卒業研究",
+    "MinYear": "必要な学年",
+    "Year": "学年",
+    "MinCredits": "必要な単位数",
+    "Earned": "修得単位数",
+    "Course": "前提科目"
+   }
+  },
+  {
+   "id": "rule-type/first_year_credit_requirement",
+   "kind": "rule-type",
+   "label": "1年次の修得単位要件",
+   "rule_type": "first_year_credit_requirement",
+   "subject_class": "schema:EducationalOccupationalProgram",
+   "rule_terms": {
+    "year_of_study": "urd:targetYearOfStudy",
+    "minimum_ratio_percent": "urd:minimumCreditRatio"
+   },
+   "evaluated_terms": [
+    "schema:numberOfCredits",
+    "schema:AchieveAction",
+    "urd:atYearOfStudy",
+    "ccso:enrolledIn"
+   ],
+   "goal": "meets_first_year_requirement/1",
+   "horn_clause": "% 履修規程 第14条：第1年次に、卒業に必要な単位数の4分の1以上を修得する\nmeets_first_year_requirement(Student) :-\n    first_year_credits(Student, Earned),\n    first_year_minimum(Student, Minimum),\n    Earned >= Minimum.\n\n% 対象年次に修得した単位数（修得の記録をたどって合計する）\nfirst_year_credits(Student, Earned) :-\n    ccso:enrolledIn(Student, Program),\n    urd:targetYearOfStudy(Program, Year),\n    aggregate_all(sum(Credits),\n                  (completed_in_year(Student, Year, Course),\n                   schema:numberOfCredits(Course, Credits)),\n                  Earned).\n\n% 必要な単位数＝卒業に必要な単位数 × 割合（端数は切り上げ）\nfirst_year_minimum(Student, Minimum) :-\n    ccso:enrolledIn(Student, Program),\n    schema:numberOfCredits(Program, Required),\n    urd:minimumCreditRatio(Program, Percent),\n    Minimum is ceiling(Required * Percent / 100).\n\n% 学生がその学年のときに修得した科目\ncompleted_in_year(Student, Year, Course) :-\n    schema:agent(Record, Student),\n    rdf:type(Record, schema:AchieveAction),\n    urd:atYearOfStudy(Record, Year),\n    schema:object(Record, Course).\n",
+   "readings": {
+    "meets_first_year_requirement/1": "{1}が、1年次の修得単位要件を満たしている",
+    "first_year_credits/2": "{1}が1年次に修得した単位数は{2}",
+    "first_year_minimum/2": "{1}が1年次に修得すべき単位数は{2}",
+    "completed_in_year/3": "{1}が{3}を修得したときの学年は{2}"
+   },
+   "variables": {
+    "Student": "学生",
+    "Earned": "修得単位数",
+    "Minimum": "必要単位数",
+    "Program": "課程",
+    "Year": "対象年次",
+    "Course": "科目",
+    "Credits": "単位数",
+    "Required": "卒業に必要な単位数",
+    "Percent": "割合（%）",
+    "Record": "修得の記録"
+   }
   },
   {
    "id": "rule-type/personalized_notification",
@@ -946,6 +1120,7 @@
     "level": "urd:notificationLevel"
    },
    "evaluated_terms": [],
+   "executable": false,
    "horn_clause": "notify(Student, Message) :- condition_1(Student), ..., condition_n(Student), schema:text(Rule, Message)."
   }
  ],
@@ -977,7 +1152,10 @@
     "term/schema:Legislation",
     "term/schema:Message",
     "term/schema:RegisterAction",
+    "term/schema:AchieveAction",
     "term/schema:actionStatus",
+    "term/schema:agent",
+    "term/schema:object",
     "term/schema:applicationDeadline",
     "term/schema:numberOfCredits",
     "term/schema:courseCode",
@@ -1026,6 +1204,9 @@
     "term/urd:requiredCourse",
     "term/urd:minimumYearOfStudy",
     "term/urd:minimumEarnedCredits",
+    "term/urd:atYearOfStudy",
+    "term/urd:targetYearOfStudy",
+    "term/urd:minimumCreditRatio",
     "term/urd:evaluationDate",
     "term/urd:notificationLevel",
     "term/urd:courseCategory",
@@ -1115,7 +1296,8 @@
     "concept/registered-course",
     "concept/registration-action",
     "concept/year-of-study",
-    "concept/earned-credits"
+    "concept/earned-credits",
+    "concept/completion-time"
    ],
    "about": [],
    "note": "schema.org が語彙をほとんど持たない領域。CCSO で補完している。"
@@ -1152,7 +1334,8 @@
     "rule-type/annual_credit_limit",
     "rule-type/graduation_credit_requirement",
     "rule-type/graduation_required_courses",
-    "rule-type/thesis_eligibility"
+    "rule-type/thesis_eligibility",
+    "rule-type/first_year_credit_requirement"
    ],
    "about": [],
    "note": "対象ノードと根拠条文の指定が必須。"
@@ -1582,6 +1765,22 @@
    "reading": "urd:registeredCredits は schema:numberOfCredits をたどって導出する"
   },
   {
+   "id": "edge/uses/concept/completion-time->term/schema:AchieveAction",
+   "source": "concept/completion-time",
+   "target": "term/schema:AchieveAction",
+   "kind": "uses",
+   "derived": false,
+   "reading": "単位修得の時期 は schema:AchieveAction で表す"
+  },
+  {
+   "id": "edge/uses/concept/completion-time->term/urd:atYearOfStudy",
+   "source": "concept/completion-time",
+   "target": "term/urd:atYearOfStudy",
+   "kind": "uses",
+   "derived": false,
+   "reading": "単位修得の時期 は urd:atYearOfStudy で表す"
+  },
+  {
    "id": "edge/uses/concept/legislation->term/schema:Legislation",
    "source": "concept/legislation",
    "target": "term/schema:Legislation",
@@ -1966,6 +2165,64 @@
    "reading": "卒業研究履修条件 は判定のとき ccso:hasCompleted を読む"
   },
   {
+   "id": "edge/constrains/rule-type/first_year_credit_requirement->term/schema:EducationalOccupationalProgram",
+   "source": "rule-type/first_year_credit_requirement",
+   "target": "term/schema:EducationalOccupationalProgram",
+   "kind": "constrains",
+   "derived": true,
+   "reading": "1年次の修得単位要件 は schema:EducationalOccupationalProgram に対する制約である"
+  },
+  {
+   "id": "edge/sets/rule-type/first_year_credit_requirement->term/urd:targetYearOfStudy",
+   "source": "rule-type/first_year_credit_requirement",
+   "target": "term/urd:targetYearOfStudy",
+   "kind": "sets",
+   "label": "year_of_study",
+   "derived": true,
+   "reading": "1年次の修得単位要件 は urd:targetYearOfStudy の値を定める（year_of_study）"
+  },
+  {
+   "id": "edge/sets/rule-type/first_year_credit_requirement->term/urd:minimumCreditRatio",
+   "source": "rule-type/first_year_credit_requirement",
+   "target": "term/urd:minimumCreditRatio",
+   "kind": "sets",
+   "label": "minimum_ratio_percent",
+   "derived": true,
+   "reading": "1年次の修得単位要件 は urd:minimumCreditRatio の値を定める（minimum_ratio_percent）"
+  },
+  {
+   "id": "edge/reads/rule-type/first_year_credit_requirement->term/schema:numberOfCredits",
+   "source": "rule-type/first_year_credit_requirement",
+   "target": "term/schema:numberOfCredits",
+   "kind": "reads",
+   "derived": true,
+   "reading": "1年次の修得単位要件 は判定のとき schema:numberOfCredits を読む"
+  },
+  {
+   "id": "edge/reads/rule-type/first_year_credit_requirement->term/schema:AchieveAction",
+   "source": "rule-type/first_year_credit_requirement",
+   "target": "term/schema:AchieveAction",
+   "kind": "reads",
+   "derived": true,
+   "reading": "1年次の修得単位要件 は判定のとき schema:AchieveAction を読む"
+  },
+  {
+   "id": "edge/reads/rule-type/first_year_credit_requirement->term/urd:atYearOfStudy",
+   "source": "rule-type/first_year_credit_requirement",
+   "target": "term/urd:atYearOfStudy",
+   "kind": "reads",
+   "derived": true,
+   "reading": "1年次の修得単位要件 は判定のとき urd:atYearOfStudy を読む"
+  },
+  {
+   "id": "edge/reads/rule-type/first_year_credit_requirement->term/ccso:enrolledIn",
+   "source": "rule-type/first_year_credit_requirement",
+   "target": "term/ccso:enrolledIn",
+   "kind": "reads",
+   "derived": true,
+   "reading": "1年次の修得単位要件 は判定のとき ccso:enrolledIn を読む"
+  },
+  {
    "id": "edge/constrains/rule-type/personalized_notification->term/schema:Person",
    "source": "rule-type/personalized_notification",
    "target": "term/schema:Person",
@@ -2279,8 +2536,13 @@ function indentBlock(item, indent) {
 
 function yamlScalar(text, indent) {
   if (text.includes("\n")) {
+    // 改行を含む値（Horn節など）は字下げも含めて保つため、リテラルブロック（|）で書く。
+    // 末尾の改行が1つあれば "|"、無ければ "|-"。
     const pad = "  ".repeat(indent + 1);
-    return ">-\n" + text.split("\n").map((line) => pad + line.trim()).join("\n");
+    const keepNewline = text.endsWith("\n");
+    const body = keepNewline ? text.slice(0, -1) : text;
+    return (keepNewline ? "|\n" : "|-\n")
+      + body.split("\n").map((line) => (line ? pad + line : "")).join("\n");
   }
   const needsQuote = /^[\s>|*&!%@`{}\[\],#-]|[:#]\s|\s$|^$/.test(text)
     || /^(true|false|null|yes|no|on|off|~)$/i.test(text)

@@ -54,3 +54,12 @@ rules:
     required_courses:
       - REQ-A
       - REQ-B
+
+  - rule_id: RULE-FIRSTYEAR-001
+    rule_type: first_year_credit_requirement
+    title: 1年次の修得単位要件
+    source: 2026年度履修規程 第14条
+    subject: urdi:program/engineering-2026
+    legislation: urdi:legislation/risyu-kitei-2026/art14
+    year_of_study: 1
+    minimum_ratio_percent: 25

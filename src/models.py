@@ -56,6 +56,8 @@ class LegislationRef(BaseModel):
     name: str
     parent_iri: str | None = None
     parent_name: str | None = None
+    #: 条文の本文（schema:text）。
+    text: str | None = None
 
     @property
     def citation(self) -> str:
@@ -122,6 +124,8 @@ class DecisionResult(BaseModel):
     ontology_terms: list[str] = Field(default_factory=list)
     horn_clause: str | None = None
     premises: list[Premise] = Field(default_factory=list)
+    #: 入口の述語の証明木（ProofNode.to_dict() に読み下し reading を付けたもの）。
+    proof: dict[str, Any] | None = None
 
 
 class Notification(BaseModel):

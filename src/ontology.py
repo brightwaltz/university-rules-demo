@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from src.graph_document import GraphDocument
+from src.horn import Program
 
 GRAPH_PATH = Path(__file__).resolve().parents[1] / "data" / "ontology_graph.yaml"
 
@@ -49,6 +50,7 @@ SCHEMA = _namespace("schema")
 CCSO = _namespace("ccso")
 OLOUD = _namespace("oloud")
 SKOS = _namespace("skos")
+RDF = _namespace("rdf")
 RDFS = _namespace("rdfs")
 XSD = _namespace("xsd")
 
@@ -127,8 +129,14 @@ class RuleOntology:
         subject_class: そのルールが制約する主語のクラス（CURIE）。
         rule_terms: ルール側の設定値が対応する用語（YAMLキー → CURIE）。
         evaluated_terms: 判定時に学生・グラフから読む用語（CURIE）。
-        horn_clause: 判定を Horn節 として書き下したもの。処理系には渡さず、
-            「どの原子論理式を根拠にしたか」を人間とレビュアーへ示すために使う。
+        horn_clause: 判定を Horn節 として書き下したもの（グラフ文書の原文。
+            末尾の改行だけ除く）。executable な種別は ``HORN_PROGRAM`` に入り、
+            src/horn.py の処理系が実際に評価する。
+        executable: horn_clause を処理系で実行する種別か。日付演算を使う
+            registration_deadline とテンプレートの personalized_notification は False。
+        goal: そのルール種別の入口の述語キー（例 ``"eligible_to_register/2"``）。
+        readings: 述語キー → 読み下しの型。``{1}`` ``{2}`` … は引数の位置。
+        variables: 変数名 → 日本語の呼び名。
     """
 
     def __init__(
@@ -138,12 +146,20 @@ class RuleOntology:
         rule_terms: dict[str, str],
         evaluated_terms: list[str],
         horn_clause: str,
+        executable: bool = True,
+        goal: str | None = None,
+        readings: dict[str, str] | None = None,
+        variables: dict[str, str] | None = None,
     ):
         self.label = label
         self.subject_class = subject_class
         self.rule_terms = rule_terms
         self.evaluated_terms = evaluated_terms
         self.horn_clause = horn_clause
+        self.executable = executable
+        self.goal = goal
+        self.readings = readings or {}
+        self.variables = variables or {}
 
     def terms(self) -> list[str]:
         """このルールが触れる全用語（重複排除・出現順）。"""
@@ -158,18 +174,50 @@ def _load_rule_types() -> dict[str, RuleOntology]:
     rule_types: dict[str, RuleOntology] = {}
     for node in GRAPH.nodes_of_kind("rule-type"):
         rule_type = str(getattr(node, "rule_type"))
-        horn_clause = " ".join(str(getattr(node, "horn_clause")).split())
+        # 複数節・コメント行を含むので空白は潰さない（潰すと % 以降が後続の節を飲み込む）。
+        horn_clause = str(getattr(node, "horn_clause")).rstrip("\n")
+        goal = getattr(node, "goal", None)
         rule_types[rule_type] = RuleOntology(
             label=node.label,
             subject_class=str(getattr(node, "subject_class")),
             rule_terms=dict(getattr(node, "rule_terms", None) or {}),
             evaluated_terms=list(getattr(node, "evaluated_terms", None) or []),
             horn_clause=horn_clause,
+            executable=bool(getattr(node, "executable", True)),
+            goal=str(goal) if goal else None,
+            readings=dict(getattr(node, "readings", None) or {}),
+            variables=dict(getattr(node, "variables", None) or {}),
         )
     return rule_types
 
 
 RULE_TYPE_ONTOLOGY: dict[str, RuleOntology] = _load_rule_types()
+
+
+
+def _load_horn_program() -> Program:
+    """実行される Horn 節プログラム。
+
+    executable な rule-type の horn_clause と、派生用語（term ノード）の定義節を
+    1つにまとめる。origin はノード id で、同じ述語を2箇所で定義すると
+    ``Program.combine`` が HornError にする（「1つの事実は1箇所」）。
+    """
+    programs: list[Program] = []
+    for node in GRAPH.nodes_of_kind("rule-type"):
+        if not bool(getattr(node, "executable", True)):
+            continue
+        programs.append(Program.parse(str(getattr(node, "horn_clause")), origin=node.id))
+    for node in GRAPH.terms():
+        source = getattr(node, "horn_clause", None)
+        if source:
+            programs.append(Program.parse(str(source), origin=node.id))
+    program = Program.combine(programs)
+    program.check()
+    return program
+
+
+#: 判定に使う Horn 節プログラム（安全性・層化の検査済み）。
+HORN_PROGRAM: Program = _load_horn_program()
 
 RULE_TYPE_LABELS: dict[str, str] = {
     rule_type: ontology.label for rule_type, ontology in RULE_TYPE_ONTOLOGY.items()

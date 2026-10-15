@@ -147,6 +147,13 @@ class RuleRepository:
                 normalized.get("minimum_earned_credits"), "最低修得単位数"
             )
             normalized["required_courses"] = self._required_courses(normalized.get("required_courses"))
+        elif rule_type == "first_year_credit_requirement":
+            normalized["year_of_study"] = self._int_in_range(
+                normalized.get("year_of_study"), "対象年次", 1, 6
+            )
+            normalized["minimum_ratio_percent"] = self._int_in_range(
+                normalized.get("minimum_ratio_percent"), "最低修得割合（%）", 1, 100
+            )
         elif rule_type == "personalized_notification":
             normalized["enabled"] = bool(normalized.get("enabled", True))
             normalized["message"] = str(normalized.get("message", "")).strip()
@@ -253,6 +260,13 @@ class RuleRepository:
         number = RuleRepository._nonnegative_int(value, label)
         if number == 0:
             raise RuleValidationError(f"{label}は1以上にしてください。")
+        return number
+
+    @staticmethod
+    def _int_in_range(value: Any, label: str, low: int, high: int) -> int:
+        number = RuleRepository._nonnegative_int(value, label)
+        if not low <= number <= high:
+            raise RuleValidationError(f"{label}は{low}〜{high}の整数にしてください。")
         return number
 
     @staticmethod

@@ -139,6 +139,14 @@ table { border-collapse: collapse; width: 100%; font-size: .875rem; }
 th, td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; vertical-align: top; }
 th { font-weight: 600; background: var(--surface); }
 
+/* 例題表：ID・AIの予想・システムの判定・一致は1行で見せ、状況の列が残りの幅で折り返す */
+.examples-table th:nth-child(1), .examples-table td:nth-child(1),
+.examples-table th:nth-child(4), .examples-table td:nth-child(4),
+.examples-table th:nth-child(5), .examples-table td:nth-child(5),
+.examples-table th:nth-child(6), .examples-table td:nth-child(6) { white-space: nowrap; }
+.examples-table td:nth-child(2) { min-width: 9em; }
+.examples-table td:nth-child(3) { min-width: 16em; }
+
 code, pre { font-family: var(--mono); font-size: .8125rem; }
 pre {
   overflow-x: auto;

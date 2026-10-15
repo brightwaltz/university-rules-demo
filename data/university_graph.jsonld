@@ -4,6 +4,7 @@
     "ccso": "https://w3id.org/ccso/ccso#",
     "oloud": "http://lod.nik.uni-obuda.hu/oloud/oloud#",
     "skos": "http://www.w3.org/2004/02/skos/core#",
+    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "urd": "https://brightwaltz.github.io/university-rules-demo/ns#",
@@ -1170,7 +1171,8 @@
       "schema:isPartOf": {
         "@id": "urdi:legislation/gakusoku-2026"
       },
-      "schema:inLanguage": "ja"
+      "schema:inLanguage": "ja",
+      "schema:text": "卒業の要件は、所定の授業科目を履修し、124単位以上を修得することとする。"
     },
     {
       "@id": "urdi:legislation/gakusoku-2026/art32-2",
@@ -1180,7 +1182,8 @@
       "schema:isPartOf": {
         "@id": "urdi:legislation/gakusoku-2026"
       },
-      "schema:inLanguage": "ja"
+      "schema:inLanguage": "ja",
+      "schema:text": "前項の単位には、必修A及び必修Bの単位を含まなければならない。"
     },
     {
       "@id": "urdi:legislation/risyu-kitei-2026",
@@ -1205,7 +1208,8 @@
       "schema:isPartOf": {
         "@id": "urdi:legislation/risyu-kitei-2026"
       },
-      "schema:inLanguage": "ja"
+      "schema:inLanguage": "ja",
+      "schema:text": "2026年度前期の履修登録は、2026年4月15日までに行わなければならない。"
     },
     {
       "@id": "urdi:legislation/risyu-kitei-2026/art12",
@@ -1215,7 +1219,19 @@
       "schema:isPartOf": {
         "@id": "urdi:legislation/risyu-kitei-2026"
       },
-      "schema:inLanguage": "ja"
+      "schema:inLanguage": "ja",
+      "schema:text": "学生が1年間に履修登録できる単位数の上限は、48単位とする。"
+    },
+    {
+      "@id": "urdi:legislation/risyu-kitei-2026/art14",
+      "@type": "schema:Legislation",
+      "schema:name": "第1年次に修得すべき単位数",
+      "schema:legislationIdentifier": "第14条",
+      "schema:isPartOf": {
+        "@id": "urdi:legislation/risyu-kitei-2026"
+      },
+      "schema:inLanguage": "ja",
+      "schema:text": "学生は、第1年次において、卒業に必要な単位数の4分の1以上を修得しなければならない。2 前項に定める単位数を修得できなかった学生は、修学指導の対象とする。"
     },
     {
       "@id": "urdi:legislation/kougakubu-saisoku-2026",
@@ -1240,7 +1256,8 @@
       "schema:isPartOf": {
         "@id": "urdi:legislation/kougakubu-saisoku-2026"
       },
-      "schema:inLanguage": "ja"
+      "schema:inLanguage": "ja",
+      "schema:text": "卒業研究を履修するためには、第4年次以上に在籍し、100単位以上を修得し、かつ必修A及び必修Bを修得していなければならない。"
     },
     {
       "@id": "urdi:student/S001",
@@ -1424,6 +1441,135 @@
       },
       "ccso:academicYear": "2026",
       "urd:semester": "first"
+    },
+    {
+      "@id": "urdi:achievement/S001/2024",
+      "@type": "schema:AchieveAction",
+      "schema:name": "2024年度（1年次）の単位修得",
+      "schema:agent": {
+        "@id": "urdi:student/S001"
+      },
+      "schema:object": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        }
+      ],
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2024",
+      "urd:atYearOfStudy": 1
+    },
+    {
+      "@id": "urdi:achievement/S001/2025",
+      "@type": "schema:AchieveAction",
+      "schema:name": "2025年度（2年次）の単位修得",
+      "schema:agent": {
+        "@id": "urdi:student/S001"
+      },
+      "schema:object": [
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        },
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        }
+      ],
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2025",
+      "urd:atYearOfStudy": 2
     },
     {
       "@id": "urdi:student/S002",
@@ -1621,6 +1767,180 @@
       "urd:semester": "first"
     },
     {
+      "@id": "urdi:achievement/S002/2023",
+      "@type": "schema:AchieveAction",
+      "schema:name": "2023年度（1年次）の単位修得",
+      "schema:agent": {
+        "@id": "urdi:student/S002"
+      },
+      "schema:object": [
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        }
+      ],
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2023",
+      "urd:atYearOfStudy": 1
+    },
+    {
+      "@id": "urdi:achievement/S002/2024",
+      "@type": "schema:AchieveAction",
+      "schema:name": "2024年度（2年次）の単位修得",
+      "schema:agent": {
+        "@id": "urdi:student/S002"
+      },
+      "schema:object": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/GEN-21"
+        },
+        {
+          "@id": "urdi:course/GEN-22"
+        },
+        {
+          "@id": "urdi:course/GEN-23"
+        },
+        {
+          "@id": "urdi:course/GEN-24"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        }
+      ],
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2024",
+      "urd:atYearOfStudy": 2
+    },
+    {
+      "@id": "urdi:achievement/S002/2025",
+      "@type": "schema:AchieveAction",
+      "schema:name": "2025年度（3年次）の単位修得",
+      "schema:agent": {
+        "@id": "urdi:student/S002"
+      },
+      "schema:object": [
+        {
+          "@id": "urdi:course/REQ-B"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        },
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        },
+        {
+          "@id": "urdi:course/FND-13"
+        },
+        {
+          "@id": "urdi:course/FND-14"
+        },
+        {
+          "@id": "urdi:course/SPC-01"
+        },
+        {
+          "@id": "urdi:course/SPC-02"
+        },
+        {
+          "@id": "urdi:course/SPC-03"
+        }
+      ],
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2025",
+      "urd:atYearOfStudy": 3
+    },
+    {
       "@id": "urdi:student/S003",
       "@type": [
         "schema:Person",
@@ -1805,6 +2125,192 @@
       },
       "ccso:academicYear": "2026",
       "urd:semester": "first"
+    },
+    {
+      "@id": "urdi:achievement/S003/2023",
+      "@type": "schema:AchieveAction",
+      "schema:name": "2023年度（1年次）の単位修得",
+      "schema:agent": {
+        "@id": "urdi:student/S003"
+      },
+      "schema:object": [
+        {
+          "@id": "urdi:course/REQ-A"
+        },
+        {
+          "@id": "urdi:course/GEN-01"
+        },
+        {
+          "@id": "urdi:course/GEN-02"
+        },
+        {
+          "@id": "urdi:course/GEN-03"
+        },
+        {
+          "@id": "urdi:course/GEN-04"
+        },
+        {
+          "@id": "urdi:course/GEN-05"
+        },
+        {
+          "@id": "urdi:course/GEN-06"
+        },
+        {
+          "@id": "urdi:course/GEN-07"
+        },
+        {
+          "@id": "urdi:course/GEN-08"
+        },
+        {
+          "@id": "urdi:course/GEN-09"
+        },
+        {
+          "@id": "urdi:course/GEN-10"
+        },
+        {
+          "@id": "urdi:course/GEN-11"
+        },
+        {
+          "@id": "urdi:course/GEN-12"
+        },
+        {
+          "@id": "urdi:course/GEN-13"
+        },
+        {
+          "@id": "urdi:course/GEN-14"
+        },
+        {
+          "@id": "urdi:course/GEN-15"
+        },
+        {
+          "@id": "urdi:course/GEN-16"
+        }
+      ],
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2023",
+      "urd:atYearOfStudy": 1
+    },
+    {
+      "@id": "urdi:achievement/S003/2024",
+      "@type": "schema:AchieveAction",
+      "schema:name": "2024年度（2年次）の単位修得",
+      "schema:agent": {
+        "@id": "urdi:student/S003"
+      },
+      "schema:object": [
+        {
+          "@id": "urdi:course/REQ-B"
+        },
+        {
+          "@id": "urdi:course/GEN-17"
+        },
+        {
+          "@id": "urdi:course/GEN-18"
+        },
+        {
+          "@id": "urdi:course/GEN-19"
+        },
+        {
+          "@id": "urdi:course/GEN-20"
+        },
+        {
+          "@id": "urdi:course/GEN-21"
+        },
+        {
+          "@id": "urdi:course/GEN-22"
+        },
+        {
+          "@id": "urdi:course/GEN-23"
+        },
+        {
+          "@id": "urdi:course/GEN-24"
+        },
+        {
+          "@id": "urdi:course/FND-01"
+        },
+        {
+          "@id": "urdi:course/FND-02"
+        },
+        {
+          "@id": "urdi:course/FND-03"
+        },
+        {
+          "@id": "urdi:course/FND-04"
+        },
+        {
+          "@id": "urdi:course/FND-05"
+        },
+        {
+          "@id": "urdi:course/FND-06"
+        },
+        {
+          "@id": "urdi:course/FND-07"
+        }
+      ],
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2024",
+      "urd:atYearOfStudy": 2
+    },
+    {
+      "@id": "urdi:achievement/S003/2025",
+      "@type": "schema:AchieveAction",
+      "schema:name": "2025年度（3年次）の単位修得",
+      "schema:agent": {
+        "@id": "urdi:student/S003"
+      },
+      "schema:object": [
+        {
+          "@id": "urdi:course/FND-08"
+        },
+        {
+          "@id": "urdi:course/FND-09"
+        },
+        {
+          "@id": "urdi:course/FND-10"
+        },
+        {
+          "@id": "urdi:course/FND-11"
+        },
+        {
+          "@id": "urdi:course/FND-12"
+        },
+        {
+          "@id": "urdi:course/FND-13"
+        },
+        {
+          "@id": "urdi:course/FND-14"
+        },
+        {
+          "@id": "urdi:course/SPC-01"
+        },
+        {
+          "@id": "urdi:course/SPC-02"
+        },
+        {
+          "@id": "urdi:course/SPC-03"
+        },
+        {
+          "@id": "urdi:course/SPC-04"
+        },
+        {
+          "@id": "urdi:course/SPC-05"
+        },
+        {
+          "@id": "urdi:course/SPC-06"
+        },
+        {
+          "@id": "urdi:course/SPC-07"
+        }
+      ],
+      "schema:actionStatus": {
+        "@id": "schema:CompletedActionStatus"
+      },
+      "ccso:academicYear": "2025",
+      "urd:atYearOfStudy": 3
     }
   ]
 }

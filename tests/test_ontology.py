@@ -139,3 +139,63 @@ def test_expand_produces_absolute_iris():
     assert expand("ccso:hasCompleted") == "https://w3id.org/ccso/ccso#hasCompleted"
     with pytest.raises(ValueError):
         expand("unknown:Thing")
+
+
+def test_rule_types_carry_goal_readings_and_variables():
+    """実行するルール種別は入口の述語・読み下し・変数の呼び名を持つ。"""
+    for rule_type, ontology in RULE_TYPE_ONTOLOGY.items():
+        if not ontology.executable:
+            assert rule_type in {"registration_deadline", "personalized_notification"}
+            continue
+        assert ontology.goal in ontology.readings, rule_type
+        assert ontology.variables, rule_type
+    first_year = RULE_TYPE_ONTOLOGY["first_year_credit_requirement"]
+    assert first_year.goal == "meets_first_year_requirement/1"
+    assert first_year.rule_terms == {
+        "year_of_study": "urd:targetYearOfStudy",
+        "minimum_ratio_percent": "urd:minimumCreditRatio",
+    }
+    # 複数節とコメント行を持つので、改行は潰さずに読む。
+    assert "\n% 対象年次に修得した単位数" in first_year.horn_clause
+    assert "rdf:type(Record, schema:AchieveAction)" in first_year.horn_clause
+    assert expand("rdf:type") == "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+
+
+def test_curie_predicates_in_the_horn_program_exist(schema_terms, ccso_terms):
+    """Horn 節に出る CURIE の述語は、語彙かグラフ文書の term ノードに実在すること。"""
+    from src.ontology import GRAPH, HORN_PROGRAM
+
+    predicates: set[str] = set()
+    for key in HORN_PROGRAM.defined():
+        for dependency, _negative in HORN_PROGRAM.dependencies(key):
+            predicates.add(dependency.rsplit("/", 1)[0])
+        predicates.add(key.rsplit("/", 1)[0])
+    curies = sorted(predicate for predicate in predicates if ":" in predicate)
+    assert "ccso:hasCompleted" in curies and "rdf:type" in curies
+
+    missing = []
+    for curie in curies:
+        prefix, _, local = curie.partition(":")
+        if curie == "rdf:type" or GRAPH.has_term(curie):
+            continue
+        if prefix == "schema" and local in schema_terms:
+            continue
+        if prefix == "ccso" and local in ccso_terms:
+            continue
+        missing.append(curie)
+    assert missing == []
+
+
+def test_horn_program_combines_executable_rule_types_and_term_definitions():
+    from src.ontology import HORN_PROGRAM
+
+    origins = set(HORN_PROGRAM.origins.values())
+    assert "term/urd:earnedCredits" in origins
+    assert "term/urd:registeredCredits" in origins
+    # 表示専用の種別はプログラムに入らない
+    assert "rule-type/registration_deadline" not in origins
+    assert "rule-type/personalized_notification" not in origins
+    for rule_type, ontology in RULE_TYPE_ONTOLOGY.items():
+        if ontology.executable:
+            assert ontology.goal in HORN_PROGRAM.defined(), rule_type
+            assert set(ontology.readings) <= HORN_PROGRAM.defined(), rule_type

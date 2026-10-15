@@ -1,0 +1,2000 @@
+# 例題：仮想の学生と、規程から期待される結論の組。
+# origin: boundary（境界値を機械的に生成）/ ai（AI が規程の本文を読んで作成）/ human（担当者が追加）
+# review.verdict: unreviewed / agree（AI の結論は正しい）/ disagree（正しくない。correct_status が正解）/ unsure（判断できない）
+# このファイルは scripts/generate_examples.py と画面の「確認結果を保存」が書き出す。
+examples:
+- id: FY-AI-01
+  rule_type: first_year_credit_requirement
+  origin: ai
+  title: 1年次を留年し、2年間で合計35単位を修得した
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 20
+    - academic_year: 2025
+      year_of_study: 1
+      other_credits: 15
+  expected:
+    status: eligible
+    reason: 第1年次に在籍した2年間で合計35単位を修得しており、必要な31単位以上のため
+  ai_note: 「第1年次において」が、留年して第1年次を2回過ごした場合に2年分を合算するのか、最初の1年間だけを数えるのかは、条文から決まらない。最初の1年だけなら20単位で要件を満たさない。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-AI-02
+  rule_type: first_year_credit_requirement
+  origin: ai
+  title: 3年次に編入学した（本学での第1年次の在籍がない）
+  student:
+    year_of_study: 3
+    history: []
+  expected:
+    status: unknown
+    reason: 編入学生には本学での第1年次がなく、本条を当てはめる場面ではないと考えられるため
+  ai_note: 編入学生に本条を適用するかどうかが条文に書かれていない。適用しないのであれば、ルールに「編入学生は対象外」という節を足す必要がある。現在のルールでは0単位として「満たさない」と判定される。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-AI-03
+  rule_type: first_year_credit_requirement
+  origin: ai
+  title: 1年生の前期を終えた時点で14単位を修得している
+  student:
+    year_of_study: 1
+    history:
+    - academic_year: 2026
+      year_of_study: 1
+      other_credits: 14
+  expected:
+    status: unknown
+    reason: 第1年次がまだ終わっていないため、要件を満たすかどうかはまだ決まらないため
+  ai_note: 年度の途中で問われた場合に「満たしていない」と答えるのか、「まだ確定していない」と答えるのかを決める必要がある。現在のルールは、判定時点までの修得単位だけを見て「満たさない」と答える。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-AI-04
+  rule_type: first_year_credit_requirement
+  origin: ai
+  title: 1年次に28単位、2年次に1年生向けの教養科目を含めて34単位を修得した
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 28
+    - academic_year: 2025
+      year_of_study: 2
+      courses:
+      - GEN-01
+      - GEN-02
+      other_credits: 30
+  expected:
+    status: not_eligible
+    reason: 第1年次に修得したのは28単位で、2年次に修得した科目は1年生向けの科目でも数えないため
+  ai_note: 「第1年次において修得」を「1年次の間に修得した」と読んだ。科目の配当年次（1年生向けかどうか）で数える読み方もありうる。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-AI-05
+  rule_type: first_year_credit_requirement
+  origin: ai
+  title: 1年次にちょうど31単位（必修Aを含む）を修得した
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 27
+  expected:
+    status: eligible
+    reason: 124単位の4分の1は31単位で、「以上」なので31単位ちょうどでも満たすため
+  ai_note: 124単位の4分の1は割り切れる。卒業に必要な単位数が4で割り切れない値に変わった場合の端数の扱い（切り上げか切り捨てか）は条文に書かれていない。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-AI-06
+  rule_type: first_year_credit_requirement
+  origin: ai
+  title: 1年次に30単位を修得した（1単位足りない）
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      other_credits: 30
+  expected:
+    status: not_eligible
+    reason: 必要な31単位に1単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-AI-07
+  rule_type: first_year_credit_requirement
+  origin: ai
+  title: 1年次に33単位（うち8単位は入学前に他大学で修得した単位の認定）
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      other_credits: 33
+  expected:
+    status: eligible
+    reason: 認定された単位も第1年次の修得単位として数え、33単位で31単位以上のため
+  ai_note: 入学前の既修得単位の認定を「第1年次において修得」に含めるかは条文から分からない。含めないなら25単位で満たさない。現在のデータは、修得した単位か認定された単位かを区別していない。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-AI-08
+  rule_type: first_year_credit_requirement
+  origin: ai
+  title: 入学した年度は休学し、翌年度に1年次として32単位を修得した
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      other_credits: 32
+  expected:
+    status: eligible
+    reason: 休学した年度は第1年次に数えず、1年次として在籍した年度に32単位を修得しているため
+  ai_note: 休学した年度を第1年次に含めない、と読んだ。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-AI-01
+  rule_type: thesis_eligibility
+  origin: ai
+  title: 4年生で、ちょうど100単位と必修A・Bを修得している
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 30
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 30
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 32
+  expected:
+    status: eligible
+    reason: 第4年次に在籍し、100単位以上（ちょうど100単位）で、必修A・Bも修得しているため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-AI-02
+  rule_type: thesis_eligibility
+  origin: ai
+  title: 4年生で120単位を修得しているが、必修Bが未修得
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 36
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 40
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 40
+  expected:
+    status: not_eligible
+    reason: 単位数は足りているが、必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-AI-03
+  rule_type: thesis_eligibility
+  origin: ai
+  title: 3年生で110単位と必修A・Bを修得している
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 51
+    - academic_year: 2025
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 51
+  expected:
+    status: not_eligible
+    reason: 単位と必修科目は足りているが、第4年次以上に在籍していないため
+  ai_note: 早期卒業などで3年生が卒業研究を履修できる制度があるかどうかは、この条文からは分からない。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-AI-04
+  rule_type: thesis_eligibility
+  origin: ai
+  title: 留年して5年生。118単位と必修A・Bを修得している
+  student:
+    year_of_study: 5
+    history:
+    - academic_year: 2022
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 30
+    - academic_year: 2023
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 30
+    - academic_year: 2024
+      year_of_study: 3
+      other_credits: 30
+    - academic_year: 2025
+      year_of_study: 4
+      other_credits: 20
+  expected:
+    status: eligible
+    reason: 「第4年次以上に在籍」なので5年生も含まれ、単位と必修科目も足りているため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-AI-01
+  rule_type: graduation
+  origin: ai
+  title: ちょうど124単位と必修A・Bを修得している
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 36
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 40
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 124単位以上（ちょうど124単位）で、必修A・Bも修得しているため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-AI-02
+  rule_type: graduation
+  origin: ai
+  title: 140単位を修得しているが、必修Aが未修得
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 46
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 46
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 44
+  expected:
+    status: not_eligible
+    reason: 単位数は足りているが、必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-AI-03
+  rule_type: graduation
+  origin: ai
+  title: 卒業研究を履修していないが、124単位と必修A・Bを修得している
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 36
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 40
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 第32条が求めるのは124単位以上と必修A・Bだけで、卒業研究は含まれていないため
+  ai_note: 条文上、卒業研究は卒業要件に入っていない。実際の運用で卒業研究が必須なら、規程とルールの両方に書き足す必要がある。
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: RC-AI-01
+  rule_type: graduation_required_courses
+  origin: ai
+  title: 必修Aだけを修得している
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 30
+  expected:
+    status: not_eligible
+    reason: 必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-001
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に0単位、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 0
+  expected:
+    status: not_eligible
+    reason: 1年次の修得0単位が、必要な31単位に31単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-002
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に0単位、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 0
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: not_eligible
+    reason: 1年次の修得0単位が、必要な31単位に31単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-003
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に4単位（必修Aを含む）、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 0
+  expected:
+    status: not_eligible
+    reason: 1年次の修得4単位が、必要な31単位に27単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-004
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に4単位（必修Aを含む）、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 0
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: not_eligible
+    reason: 1年次の修得4単位が、必要な31単位に27単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-005
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に27単位、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 27
+  expected:
+    status: not_eligible
+    reason: 1年次の修得27単位が、必要な31単位に4単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-006
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に27単位、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 27
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: not_eligible
+    reason: 1年次の修得27単位が、必要な31単位に4単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-007
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に31単位（必修Aを含む）、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 27
+  expected:
+    status: eligible
+    reason: 1年次の修得31単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-008
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に31単位（必修Aを含む）、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 27
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 1年次の修得31単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-009
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に30単位、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 30
+  expected:
+    status: not_eligible
+    reason: 1年次の修得30単位が、必要な31単位に1単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-010
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に30単位、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 30
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: not_eligible
+    reason: 1年次の修得30単位が、必要な31単位に1単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-011
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に34単位（必修Aを含む）、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 30
+  expected:
+    status: eligible
+    reason: 1年次の修得34単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-012
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に34単位（必修Aを含む）、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 30
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 1年次の修得34単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-013
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に31単位、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 31
+  expected:
+    status: eligible
+    reason: 1年次の修得31単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-014
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に31単位、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 31
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 1年次の修得31単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-015
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に35単位（必修Aを含む）、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 31
+  expected:
+    status: eligible
+    reason: 1年次の修得35単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-016
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に35単位（必修Aを含む）、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 31
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 1年次の修得35単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-017
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に32単位、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 32
+  expected:
+    status: eligible
+    reason: 1年次の修得32単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-018
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に32単位、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 32
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 1年次の修得32単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-019
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に36単位（必修Aを含む）、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 32
+  expected:
+    status: eligible
+    reason: 1年次の修得36単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-020
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に36単位（必修Aを含む）、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 32
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 1年次の修得36単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-021
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に50単位、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 50
+  expected:
+    status: eligible
+    reason: 1年次の修得50単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-022
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に50単位、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 50
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 1年次の修得50単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-023
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に54単位（必修Aを含む）、2年次の修得なし
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 50
+  expected:
+    status: eligible
+    reason: 1年次の修得54単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: FY-B-024
+  rule_type: first_year_credit_requirement
+  origin: boundary
+  title: 1年次に54単位（必修Aを含む）、2年次に40単位
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 50
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 1年次の修得54単位が、必要な31単位以上のため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-001
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で99単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 49
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 50
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、修得99単位が、必要な100単位に1単位足りない、必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-002
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で99単位を修得（必修Aを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 47
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 48
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、修得99単位が、必要な100単位に1単位足りない、必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-003
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で99単位を修得（必修Bを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 47
+    - academic_year: 2025
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 48
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、修得99単位が、必要な100単位に1単位足りない、必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-004
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で99単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 45
+    - academic_year: 2025
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 46
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、修得99単位が、必要な100単位に1単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-005
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で100単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 50
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 50
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-006
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で100単位を修得（必修Aを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 48
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 48
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-007
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で100単位を修得（必修Bを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 48
+    - academic_year: 2025
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 48
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-008
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で100単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 46
+    - academic_year: 2025
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 46
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-009
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で101単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 50
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 51
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-010
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で101単位を修得（必修Aを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 48
+    - academic_year: 2025
+      year_of_study: 2
+      other_credits: 49
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-011
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で101単位を修得（必修Bを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      other_credits: 48
+    - academic_year: 2025
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 49
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していない、必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-012
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 3年生で101単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 3
+    history:
+    - academic_year: 2024
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 46
+    - academic_year: 2025
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 47
+  expected:
+    status: not_eligible
+    reason: 3年生で、第4年次以上に在籍していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-013
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で99単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 33
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 33
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 33
+  expected:
+    status: not_eligible
+    reason: 修得99単位が、必要な100単位に1単位足りない、必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-014
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で99単位を修得（必修Aを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 31
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 31
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 33
+  expected:
+    status: not_eligible
+    reason: 修得99単位が、必要な100単位に1単位足りない、必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-015
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で99単位を修得（必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 31
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 31
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 33
+  expected:
+    status: not_eligible
+    reason: 修得99単位が、必要な100単位に1単位足りない、必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-016
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で99単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 30
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 30
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 31
+  expected:
+    status: not_eligible
+    reason: 修得99単位が、必要な100単位に1単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-017
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で100単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 33
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 33
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 34
+  expected:
+    status: not_eligible
+    reason: 必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-018
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で100単位を修得（必修Aを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 32
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 32
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 32
+  expected:
+    status: not_eligible
+    reason: 必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-019
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で100単位を修得（必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 32
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 32
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 32
+  expected:
+    status: not_eligible
+    reason: 必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-020
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で100単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 30
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 30
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 32
+  expected:
+    status: eligible
+    reason: 第4年次以上に在籍し、修得100単位が必要な100単位以上で、必修A・必修Bも修得しているため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-021
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で101単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 33
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 33
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 35
+  expected:
+    status: not_eligible
+    reason: 必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-022
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で101単位を修得（必修Aを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 32
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 32
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 33
+  expected:
+    status: not_eligible
+    reason: 必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-023
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で101単位を修得（必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 32
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 32
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 33
+  expected:
+    status: not_eligible
+    reason: 必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: TH-B-024
+  rule_type: thesis_eligibility
+  origin: boundary
+  title: 4年生で101単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 31
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 31
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 31
+  expected:
+    status: eligible
+    reason: 第4年次以上に在籍し、修得101単位が必要な100単位以上で、必修A・必修Bも修得しているため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-001
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で123単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 41
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 41
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 41
+  expected:
+    status: not_eligible
+    reason: 修得123単位が、卒業に必要な124単位に1単位足りない、必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-002
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で123単位を修得（必修Aを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 39
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 39
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 41
+  expected:
+    status: not_eligible
+    reason: 修得123単位が、卒業に必要な124単位に1単位足りない、必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-003
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で123単位を修得（必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 39
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 39
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 41
+  expected:
+    status: not_eligible
+    reason: 修得123単位が、卒業に必要な124単位に1単位足りない、必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-004
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で123単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 38
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 38
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 39
+  expected:
+    status: not_eligible
+    reason: 修得123単位が、卒業に必要な124単位に1単位足りないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-005
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で124単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 41
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 41
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 42
+  expected:
+    status: not_eligible
+    reason: 必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-006
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で124単位を修得（必修Aを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 40
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 40
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 40
+  expected:
+    status: not_eligible
+    reason: 必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-007
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で124単位を修得（必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 40
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 40
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 40
+  expected:
+    status: not_eligible
+    reason: 必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-008
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で124単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 38
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 38
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 40
+  expected:
+    status: eligible
+    reason: 修得124単位が卒業に必要な124単位以上で、必修A・必修Bも修得しているため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-009
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で125単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 41
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 41
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 43
+  expected:
+    status: not_eligible
+    reason: 必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-010
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で125単位を修得（必修Aを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 40
+    - academic_year: 2024
+      year_of_study: 2
+      other_credits: 40
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 41
+  expected:
+    status: not_eligible
+    reason: 必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-011
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で125単位を修得（必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      other_credits: 40
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 40
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 41
+  expected:
+    status: not_eligible
+    reason: 必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: GR-B-012
+  rule_type: graduation
+  origin: boundary
+  title: 4年生で125単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 4
+    history:
+    - academic_year: 2023
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 39
+    - academic_year: 2024
+      year_of_study: 2
+      courses:
+      - REQ-B
+      other_credits: 39
+    - academic_year: 2025
+      year_of_study: 3
+      other_credits: 39
+  expected:
+    status: eligible
+    reason: 修得125単位が卒業に必要な124単位以上で、必修A・必修Bも修得しているため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: RC-B-001
+  rule_type: graduation_required_courses
+  origin: boundary
+  title: 1年次に30単位を修得（必修科目を含まない）
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      other_credits: 30
+  expected:
+    status: not_eligible
+    reason: 必修A・必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: RC-B-002
+  rule_type: graduation_required_courses
+  origin: boundary
+  title: 1年次に34単位を修得（必修Aを含む）
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      courses:
+      - REQ-A
+      other_credits: 30
+  expected:
+    status: not_eligible
+    reason: 必修Bを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: RC-B-003
+  rule_type: graduation_required_courses
+  origin: boundary
+  title: 1年次に34単位を修得（必修Bを含む）
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      courses:
+      - REQ-B
+      other_credits: 30
+  expected:
+    status: not_eligible
+    reason: 必修Aを修得していないため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
+- id: RC-B-004
+  rule_type: graduation_required_courses
+  origin: boundary
+  title: 1年次に38単位を修得（必修A・必修Bを含む）
+  student:
+    year_of_study: 2
+    history:
+    - academic_year: 2025
+      year_of_study: 1
+      courses:
+      - REQ-A
+      - REQ-B
+      other_credits: 30
+  expected:
+    status: eligible
+    reason: 必修A・必修Bをすべて修得しているため
+  ai_note: null
+  review:
+    verdict: unreviewed
+    correct_status: null
+    note: null
+    reviewer: null
+    reviewed_on: null
