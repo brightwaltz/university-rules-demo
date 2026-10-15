@@ -2,6 +2,8 @@
 
 学生のパーソナルデータと大学規則を組み合わせ、履修・卒業に関する回答、個別通知、適格性判定を行う研究用MVPです。APIキーは不要で、大学制度上の判断に生成AIを使用しません。
 
+このリポジトリは Claude Code（Anthropic）を使って作っています。
+
 データは **schema.org を基底とする共通オントロジー上のナレッジグラフ**（`data/university_graph.jsonld`）として保持し、規則は **そのオントロジーの用語に束縛されたRules as Code**（`data/rules.yaml`）として保持します。
 
 そのオントロジー自体も **node / edge / hypernode からなるグラフ文書**（`data/ontology_graph.yaml`）として持ち、[オントロジーグラフ画面](docs/graph.html)で可視化・編集できます。
