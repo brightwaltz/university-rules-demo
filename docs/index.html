@@ -2660,12 +2660,14 @@
     "schema:numberOfCredits",
     "schema:AchieveAction",
     "urd:atYearOfStudy",
-    "ccso:enrolledIn"
+    "ccso:enrolledIn",
+    "urd:admissionCategory"
    ],
-   "horn_clause": "% 履修規程 第14条：第1年次に、卒業に必要な単位数の4分の1以上を修得する\nmeets_first_year_requirement(Student) :-\n    first_year_credits(Student, Earned),\n    first_year_minimum(Student, Minimum),\n    Earned >= Minimum.\n\n% 対象年次に修得した単位数（修得の記録をたどって合計する）\nfirst_year_credits(Student, Earned) :-\n    ccso:enrolledIn(Student, Program),\n    urd:targetYearOfStudy(Program, Year),\n    aggregate_all(sum(Credits),\n                  (completed_in_year(Student, Year, Course),\n                   schema:numberOfCredits(Course, Credits)),\n                  Earned).\n\n% 必要な単位数＝卒業に必要な単位数 × 割合（端数は切り上げ）\nfirst_year_minimum(Student, Minimum) :-\n    ccso:enrolledIn(Student, Program),\n    schema:numberOfCredits(Program, Required),\n    urd:minimumCreditRatio(Program, Percent),\n    Minimum is ceiling(Required * Percent / 100).\n\n% 学生がその学年のときに修得した科目\ncompleted_in_year(Student, Year, Course) :-\n    schema:agent(Record, Student),\n    rdf:type(Record, schema:AchieveAction),\n    urd:atYearOfStudy(Record, Year),\n    schema:object(Record, Course).",
+   "horn_clause": "% 第14条の適用条件：編入学生は対象外（本学での第1年次がないため）\nfirst_year_requirement_applies(Student) :-\n    ccso:enrolledIn(Student, Program),\n    \\+ urd:admissionCategory(Student, urdi:term/transfer-admission).\n\n% 履修規程 第14条：第1年次に、卒業に必要な単位数の4分の1以上を修得する\nmeets_first_year_requirement(Student) :-\n    first_year_credits(Student, Earned),\n    first_year_minimum(Student, Minimum),\n    Earned >= Minimum.\n\n% 対象年次に修得した単位数（修得の記録をたどって合計する）\nfirst_year_credits(Student, Earned) :-\n    ccso:enrolledIn(Student, Program),\n    urd:targetYearOfStudy(Program, Year),\n    aggregate_all(sum(Credits),\n                  (completed_in_year(Student, Year, Course),\n                   schema:numberOfCredits(Course, Credits)),\n                  Earned).\n\n% 必要な単位数＝卒業に必要な単位数 × 割合（端数は切り上げ）\nfirst_year_minimum(Student, Minimum) :-\n    ccso:enrolledIn(Student, Program),\n    schema:numberOfCredits(Program, Required),\n    urd:minimumCreditRatio(Program, Percent),\n    Minimum is ceiling(Required * Percent / 100).\n\n% 学生がその学年のときに修得した科目\ncompleted_in_year(Student, Year, Course) :-\n    schema:agent(Record, Student),\n    rdf:type(Record, schema:AchieveAction),\n    urd:atYearOfStudy(Record, Year),\n    schema:object(Record, Course).",
    "executable": true,
    "goal": "meets_first_year_requirement/1",
    "readings": {
+    "first_year_requirement_applies/1": "{1}に履修規程第14条が適用される",
     "meets_first_year_requirement/1": "{1}が、1年次の修得単位要件を満たしている",
     "first_year_credits/2": "{1}が1年次に修得した単位数は{2}",
     "first_year_minimum/2": "{1}が1年次に修得すべき単位数は{2}",
@@ -2722,7 +2724,7 @@
   },
   {
    "origin": "rule-type/first_year_credit_requirement",
-   "text": "% 履修規程 第14条：第1年次に、卒業に必要な単位数の4分の1以上を修得する\nmeets_first_year_requirement(Student) :-\n    first_year_credits(Student, Earned),\n    first_year_minimum(Student, Minimum),\n    Earned >= Minimum.\n\n% 対象年次に修得した単位数（修得の記録をたどって合計する）\nfirst_year_credits(Student, Earned) :-\n    ccso:enrolledIn(Student, Program),\n    urd:targetYearOfStudy(Program, Year),\n    aggregate_all(sum(Credits),\n                  (completed_in_year(Student, Year, Course),\n                   schema:numberOfCredits(Course, Credits)),\n                  Earned).\n\n% 必要な単位数＝卒業に必要な単位数 × 割合（端数は切り上げ）\nfirst_year_minimum(Student, Minimum) :-\n    ccso:enrolledIn(Student, Program),\n    schema:numberOfCredits(Program, Required),\n    urd:minimumCreditRatio(Program, Percent),\n    Minimum is ceiling(Required * Percent / 100).\n\n% 学生がその学年のときに修得した科目\ncompleted_in_year(Student, Year, Course) :-\n    schema:agent(Record, Student),\n    rdf:type(Record, schema:AchieveAction),\n    urd:atYearOfStudy(Record, Year),\n    schema:object(Record, Course).\n"
+   "text": "% 第14条の適用条件：編入学生は対象外（本学での第1年次がないため）\nfirst_year_requirement_applies(Student) :-\n    ccso:enrolledIn(Student, Program),\n    \\+ urd:admissionCategory(Student, urdi:term/transfer-admission).\n\n% 履修規程 第14条：第1年次に、卒業に必要な単位数の4分の1以上を修得する\nmeets_first_year_requirement(Student) :-\n    first_year_credits(Student, Earned),\n    first_year_minimum(Student, Minimum),\n    Earned >= Minimum.\n\n% 対象年次に修得した単位数（修得の記録をたどって合計する）\nfirst_year_credits(Student, Earned) :-\n    ccso:enrolledIn(Student, Program),\n    urd:targetYearOfStudy(Program, Year),\n    aggregate_all(sum(Credits),\n                  (completed_in_year(Student, Year, Course),\n                   schema:numberOfCredits(Course, Credits)),\n                  Earned).\n\n% 必要な単位数＝卒業に必要な単位数 × 割合（端数は切り上げ）\nfirst_year_minimum(Student, Minimum) :-\n    ccso:enrolledIn(Student, Program),\n    schema:numberOfCredits(Program, Required),\n    urd:minimumCreditRatio(Program, Percent),\n    Minimum is ceiling(Required * Percent / 100).\n\n% 学生がその学年のときに修得した科目\ncompleted_in_year(Student, Year, Course) :-\n    schema:agent(Record, Student),\n    rdf:type(Record, schema:AchieveAction),\n    urd:atYearOfStudy(Record, Year),\n    schema:object(Record, Course).\n"
   },
   {
    "origin": "term/urd:earnedCredits",
@@ -4105,6 +4107,10 @@ function thesisEligibility(target) {
   });
 }
 
+// 履修規程第14条の適用条件の述語（編入学生は対象外）と、編入学の入学区分
+const FIRST_YEAR_APPLIES_KEY = "first_year_requirement_applies/1";
+const TRANSFER_ADMISSION = "urdi:term/transfer-admission";
+
 // 履修規程第14条：第1年次に、卒業に必要な単位数の4分の1以上を修得しているか
 function firstYearRequirement(target) {
   const rule = requireRule("first_year_credit_requirement");
@@ -4116,6 +4122,24 @@ function firstYearRequirement(target) {
   const requiredCredits = toInt(valueOfRule(creditRule, "required_credits"));
   const iri = checkStudent(target);
   const solver = currentSolver();
+  // 表示する節は、適用条件の節と要件の節の両方
+  const hornClause = HORN_PROGRAM.listing([FIRST_YEAR_APPLIES_KEY, meta.goal]);
+  const applies = atom("first_year_requirement_applies", iri);
+  if (!solver.holds(applies)) {
+    // 編入学生は本学での第1年次がないので、本条で判定しない（満たす・満たさないを言わない）
+    const category = solver.value(atom("urd:admissionCategory", iri, new Var("Category")), "Category");
+    return result("unknown", "編入学のため、履修規程第14条（第1年次の修得単位）の対象外です。", [rule], {
+      facts: { target_year_of_study: targetYear, admission_category: category },
+      terms: sortedTerms(meta.terms, ontologyOf("graduation_credit_requirement").terms),
+      hornClause,
+      premises: [
+        premise("urd:admissionCategory", "入学区分（編入学なら第14条の対象外）", {
+          subject: target.iri, actual: category, comparator: "!=", expected: TRANSFER_ADMISSION, satisfied: false,
+        }),
+      ],
+      proof: proofOf(solver, applies),
+    });
+  }
   const earned = requireValue(
     solver.value(atom("first_year_credits", iri, new Var("Earned")), "Earned"), "1年次の修得単位数");
   const minimum = requireValue(
@@ -4138,7 +4162,7 @@ function firstYearRequirement(target) {
       + `1年次の修得 ${pyStr(earned)} >= ${pyStr(minimum)}`,
     unmet: eligible ? [] : [`1年次の修得単位が${pyStr(minimum - earned)}単位不足`],
     terms: sortedTerms(meta.terms, ontologyOf("graduation_credit_requirement").terms),
-    hornClause: HORN_PROGRAM.listing([meta.goal]),
+    hornClause,
     premises: [
       premise("urd:minimumCreditRatio", "1年次に修得すべき単位数（卒業必要単位数 × 割合）",
         { subject: subjectOf(rule), actual: minimum }),

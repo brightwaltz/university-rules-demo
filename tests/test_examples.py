@@ -25,8 +25,9 @@ EXAMPLES_PATH = ROOT / "data" / "examples.yaml"
 RULES_PATH = ROOT / "data" / "rules.yaml"
 
 # AI が作った例題のうち、システムの判定（not_eligible）と食い違うもの。
-# どちらも AI は「このルールで判定すべきでない（unknown）」と考えた例で、規程の解釈を担当者が決める。
-AI_MISMATCHES = {"FY-AI-02", "FY-AI-03"}
+# AI は「このルールで判定すべきでない（unknown）」と考えた例で、規程の解釈を担当者が決める。
+# FY-AI-02（編入学）は、第14条に「編入学生は対象外」の節を足したので一致するようになった。
+AI_MISMATCHES = {"FY-AI-03"}
 
 
 def _generator():
@@ -108,6 +109,11 @@ def test_only_the_known_ai_examples_disagree_with_the_system(examples, outcomes)
         example = next(item for item in examples if item["id"] == example_id)
         assert example["expected"]["status"] == "unknown"
         assert outcomes[example_id].status == "not_eligible"
+    # 編入学の例題は、適用条件の節で「対象外（unknown）」になる
+    transfer = outcomes["FY-AI-02"]
+    assert transfer.status == "unknown"
+    assert transfer.message == "編入学のため、履修規程第14条（第1年次の修得単位）の対象外です。"
+    assert transfer.proof["goal"] == "first_year_requirement_applies(urdi:example/FY-AI-02/student)"
 
 
 def test_outcome_carries_the_engine_proof(examples, outcomes):

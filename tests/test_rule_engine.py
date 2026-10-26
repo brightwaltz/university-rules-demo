@@ -118,7 +118,9 @@ def test_first_year_requirement(engine, graph, student_id, earned, status):
     assert result.premises[0].subject == "urdi:program/engineering-2026"
     assert (result.premises[1].actual, result.premises[1].expected) == (earned, 31)
     assert result.premises[1].satisfied is (status == DecisionStatus.ELIGIBLE)
-    assert result.horn_clause == HORN_PROGRAM.listing(["meets_first_year_requirement/1"])
+    assert result.horn_clause == HORN_PROGRAM.listing(
+        ["first_year_requirement_applies/1", "meets_first_year_requirement/1"]
+    )
     assert "schema:AchieveAction" in result.ontology_terms
     assert "urd:earnedCredits" in result.ontology_terms  # 卒業必要単位数の種別の用語も含む
     if status == DecisionStatus.ELIGIBLE:
@@ -147,6 +149,47 @@ def test_first_year_requirement_failure_message_and_proof(engine, graph):
     ]
     last = proof["children"][-1]
     assert last["kind"] == "builtin" and last["reading"] == "28が31以上"
+
+
+def test_transfer_student_is_outside_the_first_year_requirement(student_on_graph, graph, engine):
+    """編入学生は第14条の対象外：満たす・満たさないを言わず UNKNOWN を返す。"""
+    transfer, student = student_on_graph({"year_of_study": 3, "admission": "transfer", "history": []})
+    result = transfer.evaluate_first_year_requirement(student)
+    assert result.status == DecisionStatus.UNKNOWN
+    assert result.message == "編入学のため、履修規程第14条（第1年次の修得単位）の対象外です。"
+    assert result.unmet_conditions == []
+    assert result.rule_ids == ["RULE-FIRSTYEAR-001"]
+    assert result.facts == {
+        "target_year_of_study": 1,
+        "admission_category": "urdi:term/transfer-admission",
+    }
+    assert [p.term for p in result.premises] == ["urd:admissionCategory"]
+    assert result.premises[0].satisfied is False
+    # 画面には、足した適用条件の節も出る
+    assert result.horn_clause.splitlines()[0] == "first_year_requirement_applies(Student) :-"
+    assert "meets_first_year_requirement(Student) :-" in result.horn_clause
+    proof = result.proof
+    assert proof["goal"] == "first_year_requirement_applies(urdi:example/TEST-OK/student)"
+    assert proof["proved"] is False
+    assert proof["reading"] == "例題の学生に履修規程第14条が適用される"
+    assert [(c["goal"], c["proved"]) for c in proof["children"]] == [
+        ("ccso:enrolledIn(urdi:example/TEST-OK/student, urdi:program/engineering-2026)", True),
+        ("\\+ urd:admissionCategory(urdi:example/TEST-OK/student, urdi:term/transfer-admission)", False),
+    ]
+    assert proof["children"][-1]["reading"] == "例題の学生の入学区分は編入学、ということはない"
+    # 一般入学の学生は従来どおり（S002 は不足で NOT_ELIGIBLE）
+    s002 = engine.evaluate_first_year_requirement(_students(graph)["S002"])
+    assert s002.status == DecisionStatus.NOT_ELIGIBLE
+    assert s002.proof["goal"] == "meets_first_year_requirement(urdi:student/S002)"
+
+
+def test_admission_defaults_to_regular(student_on_graph):
+    """admission を省略した例題の学生は一般入学として、第14条の対象になる。"""
+    engine, student = student_on_graph({"year_of_study": 3, "history": []})
+    assert engine.graph.ref(engine.graph.node(student.iri), "urd:admissionCategory") == (
+        "urdi:term/regular-admission"
+    )
+    assert engine.evaluate_first_year_requirement(student).status == DecisionStatus.NOT_ELIGIBLE
 
 
 @pytest.mark.parametrize("missing", ["first_year_credit_requirement", "graduation_credit_requirement"])

@@ -21,6 +21,10 @@ from src.models import (
 )
 from src.ontology import CONDITION_TERM_LABELS, CONDITION_TERMS, HORN_PROGRAM, RULE_TYPE_ONTOLOGY
 
+#: 履修規程第14条の適用条件の述語（編入学生は対象外）と、編入学の入学区分
+APPLIES_KEY = "first_year_requirement_applies/1"
+TRANSFER_ADMISSION = "urdi:term/transfer-admission"
+
 
 class RuleEngine:
     """規程の Horn 節を、ナレッジグラフの事実の上で評価する決定論的エンジン。
@@ -445,6 +449,38 @@ class RuleEngine:
         required_credits = int(self._value(credit_rule, "required_credits"))
         iri = self._check_student(student)
         solver = self.solver
+        # 表示する節は、適用条件の節と要件の節の両方
+        horn_clause = HORN_PROGRAM.listing([APPLIES_KEY, ontology.goal])
+        applies = atom("first_year_requirement_applies", iri)
+        if not solver.holds(applies):
+            # 編入学生は本学での第1年次がないので、本条で判定しない（満たす・満たさないを言わない）
+            category = solver.value(atom("urd:admissionCategory", iri, Var("Category")), "Category")
+            return DecisionResult(
+                status=DecisionStatus.UNKNOWN,
+                message="編入学のため、履修規程第14条（第1年次の修得単位）の対象外です。",
+                rule_ids=[rule.rule_id],
+                rule_references=[self._reference(rule)],
+                facts={"target_year_of_study": target_year, "admission_category": category},
+                ontology_terms=sorted(
+                    {
+                        *ontology.terms(),
+                        *RULE_TYPE_ONTOLOGY["graduation_credit_requirement"].terms(),
+                    }
+                ),
+                horn_clause=horn_clause,
+                premises=[
+                    Premise(
+                        term="urd:admissionCategory",
+                        label="入学区分（編入学なら第14条の対象外）",
+                        subject=student.iri,
+                        actual=category,
+                        comparator="!=",
+                        expected=TRANSFER_ADMISSION,
+                        satisfied=False,
+                    ),
+                ],
+                proof=self._proof(solver, applies),
+            )
         earned = self._require(
             solver.value(atom("first_year_credits", iri, Var("Earned")), "Earned"),
             "1年次の修得単位数",
@@ -489,7 +525,7 @@ class RuleEngine:
                     *RULE_TYPE_ONTOLOGY["graduation_credit_requirement"].terms(),
                 }
             ),
-            horn_clause=HORN_PROGRAM.listing([ontology.goal]),
+            horn_clause=horn_clause,
             premises=[
                 Premise(
                     term="urd:minimumCreditRatio",

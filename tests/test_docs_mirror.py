@@ -19,10 +19,13 @@ from pathlib import Path
 import pytest
 
 from src.answer_service import AnswerService
+from src.examples import build_example_graph, example_student_iri
 from src.horn_reading import read_rule_type
 from src.intent import RuleBasedIntentDetector
+from src.knowledge_graph import KnowledgeGraph
 from src.notification import NotificationService
 from src.ontology import HORN_PROGRAM, RULE_TYPE_ONTOLOGY
+from src.rule_engine import RuleEngine
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -147,6 +150,71 @@ def test_javascript_answers_match_the_rule_engine(javascript_students, engine, g
             proofs += decision.proof is not None
     # 証明木の照合が空振りしていないこと
     assert proofs >= len(graph.students()) * 5
+
+
+# 埋め込みの S001〜S003 はすべて一般入学なので、編入学の分岐（第14条の対象外）は
+# 例題の学生を足したグラフを埋め込んだ写しで照合する。
+TRANSFER_EXAMPLE = {"id": "MIRROR-TRANSFER", "student": {"year_of_study": 3, "admission": "transfer", "history": []}}
+
+
+@pytest.fixture(scope="module")
+def transfer_case(tmp_path_factory):
+    """（編入学の学生を足したグラフ, そのグラフを埋め込んだ JS の判定結果）。"""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js が無いため JavaScript 側の照合をスキップします。")
+    base = KnowledgeGraph(ROOT / "data" / "university_graph.jsonld")
+    graph = build_example_graph(TRANSFER_EXAMPLE, base)
+    document = {"@context": dict(graph.context), "@graph": list(graph.nodes.values())}
+    sync = _sync_module()
+    html = DOCS.read_text(encoding="utf-8")
+    block = next(m for m in sync.BLOCK.finditer(html) if m.group("name") == "knowledge-graph")
+    body = "\n" + json.dumps(document, ensure_ascii=False, indent=2) + "\n"
+    work = tmp_path_factory.mktemp("transfer")
+    (work / "assets").mkdir()
+    shutil.copy(ROOT / "docs" / "assets" / "horn.js", work / "assets" / "horn.js")
+    page = work / "index.html"
+    page.write_text(html[: block.start("body")] + body + html[block.end("body") :], encoding="utf-8")
+    questions_path = work / "questions.json"
+    questions_path.write_text(json.dumps(QUESTIONS, ensure_ascii=False), encoding="utf-8")
+    completed = subprocess.run(
+        [node, str(HARNESS), str(page), str(questions_path)],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if completed.returncode != 0:
+        pytest.fail(f"編入学の学生を足した写しのJavaScript実行に失敗しました:\n{completed.stderr}")
+    return graph, json.loads(completed.stdout)["students"]
+
+
+def test_javascript_judges_a_transfer_student_like_the_rule_engine(transfer_case):
+    graph, javascript_students = transfer_case
+    engine = RuleEngine(ROOT / "data" / "rules.yaml", graph)
+    service = AnswerService(engine, RuleBasedIntentDetector())
+    student = next(item for item in graph.students() if item.iri == example_student_iri(TRANSFER_EXAMPLE["id"]))
+    answers = {row["question"]: row for row in javascript_students[student.student_id]["answers"]}
+    unknown = 0
+    for question in QUESTIONS:
+        intent, decision = service.answer(question, student)
+        actual = answers[question]
+        context = f"{student.student_id} / {question}"
+        assert actual["intent"] == intent.value, context
+        assert actual["status"] == decision.status.value, context
+        assert actual["message"] == decision.message, context
+        assert actual["unmet"] == decision.unmet_conditions, context
+        assert actual["terms"] == decision.ontology_terms, context
+        assert actual["horn_clause"] == decision.horn_clause, context
+        assert actual["premises"] == [p.model_dump() for p in decision.premises], context
+        assert actual["facts"] == decision.facts, context
+        assert actual["calculation"] == decision.calculation, context
+        assert actual["proof"] == decision.proof, context
+        if intent.value == "first_year_requirement":
+            assert decision.status.value == "unknown", context
+            assert decision.proof["goal"].startswith("first_year_requirement_applies("), context
+            unknown += 1
+    # 第14条の質問が空振りしていないこと
+    assert unknown >= 2
 
 
 def test_javascript_notifications_match_the_notification_service(javascript_students, engine, graph):

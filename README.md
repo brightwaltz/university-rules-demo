@@ -315,7 +315,7 @@ KG-WAM は、知識グラフのノードを名前つき引数の項（素性構�
 | 全称 | 必修科目をすべて修得 | 純粋な Horn 節では書けない。否定を足せば書ける（`forall(C, A)` ＝「C なのに A でないものはない」） | 卒業必修科目 |
 | 合計・割合 | 第1年次に、卒業に必要な単位数の4分の1以上 | 純粋な Horn 節では書けない。集約を足せば書ける | **1年次の修得単位要件（新規）** |
 | 時期 | 「第1年次において」 | 事実側に時期があれば書ける（データの持ち方の問題） | 修得記録 `schema:AchieveAction` に `urd:atYearOfStudy` |
-| 例外・但し書き | ただし編入学生を除く | 否定で書ける | 例題 FY-AI-02 で要否を確認中 |
+| 例外・但し書き | ただし編入学生を除く | 否定で書ける | 1年次の修得単位要件の適用条件 `first_year_requirement_applies`（`\+ urd:admissionCategory(Student, urdi:term/transfer-admission)`）。例題 FY-AI-02 から足した |
 | 裁量 | 教授会が特に認めた場合 | **書けない**（真偽を機械が決められない） | 人の判断を事実として入力する。無ければ「判定できません」 |
 | 手続き・順序 | 申請し、審査を経て、承認される | 各段階の状態を事実（`schema:actionStatus`）として持てば、段階ごとの条件は書ける。手続きの実行そのものは別の仕組み | 履修登録の完了状態 |
 | 推薦・類似度 | どの科目を取るべきか | 規則ではない | 対象外。判定結果を入力として使う側 |
@@ -346,6 +346,11 @@ KG-WAM は、知識グラフのノードを名前つき引数の項（素性構�
 **Horn 節**（`data/ontology_graph.yaml` の `rule-type/first_year_credit_requirement`）
 
 ```prolog
+% 第14条の適用条件：編入学生は対象外（本学での第1年次がないため）
+first_year_requirement_applies(Student) :-
+    ccso:enrolledIn(Student, Program),
+    \+ urd:admissionCategory(Student, urdi:term/transfer-admission).
+
 % 履修規程 第14条：第1年次に、卒業に必要な単位数の4分の1以上を修得する
 meets_first_year_requirement(Student) :-
     first_year_credits(Student, Earned),
@@ -378,9 +383,15 @@ completed_in_year(Student, Year, Course) :-
 
 入口の節は3つの条件の連言で、各条件はさらに小さな節に分かれています。集約（`aggregate_all`）と算術（`ceiling`）を使うので純粋な Horn 節ではありませんが、層化されていて意味は一意に定まります。
 
+判定では、先に適用条件 `first_year_requirement_applies` を問い合わせます。条文には書かれていない「編入学生は対象外」を、例題 FY-AI-02（3年次に編入学）の確認から足した節です。成り立たない学生（入学区分 `urd:admissionCategory` が編入学）には、満たす・満たさないを言わず「編入学のため、履修規程第14条（第1年次の修得単位）の対象外です。」（`unknown`）と答え、証明木は適用条件の節のものを返します。入学区分は学生ノードに `schema:DefinedTerm`（一般入学 `urdi:term/regular-admission`／編入学 `urdi:term/transfer-admission`）で持たせています。
+
 **読み下し**（一般形）
 
 ```text
+〈学生〉に履修規程第14条が適用される のは、次のすべてが成り立つとき
+  1. 〈学生〉は〈課程〉に在籍している
+  2. 〈学生〉の入学区分は編入学、ということはない
+
 〈学生〉が、1年次の修得単位要件を満たしている のは、次のすべてが成り立つとき
   1. 〈学生〉が1年次に修得した単位数は〈修得単位数〉
   2. 〈学生〉が1年次に修得すべき単位数は〈必要単位数〉
