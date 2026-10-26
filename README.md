@@ -58,12 +58,13 @@ schema.org は**科目カタログ・課程・規程・通知**の語彙を十�
 | 学則・履修規程 | `schema:Legislation` | ✅ | — | — |
 | 通知 | `schema:Message` | ✅ | — | — |
 | 学年 | `urd:yearOfStudy` | — | — | — |
+| 入学区分 | `urd:admissionCategory`（値は `schema:DefinedTerm`） | — | — | — |
 | 修得単位数の合計 | `urd:earnedCredits` | — | — | — |
 | 単位修得の時期 | `schema:AchieveAction` ＋ `urd:atYearOfStudy` | ✅ | — | — |
 | 年間履修上限 | `urd:annualCreditLimit` | — | — | — |
 | 卒業必修科目 | `urd:requiredCourse` | `schema:programPrerequisites`（closeMatch） | `ccso:hasPrerequisite`（closeMatch） | `oloud:subjectRequires`（closeMatch） |
 
-この表は手で保守していません。`data/ontology_graph.yaml` の concept → term エッジから毎回導出しています（後述の[オントロジーグラフ](#オントロジーグラフグラフ文書)）。画面の「5. オントロジーとナレッジグラフ」でも参照できます。
+この README の表は手で書いています（OLOUD 側の `aiiso:` など、グラフ文書に無い対応も載せています）。画面の「5. オントロジーとナレッジグラフ」の対応表は手で保守せず、`data/ontology_graph.yaml` の concept → term エッジから毎回導出しています（後述の[オントロジーグラフ](#オントロジーグラフグラフ文書)）。用語を足したときは、この表も手で直してください。
 
 ### OLOUD と CCSO について（事実確認）
 

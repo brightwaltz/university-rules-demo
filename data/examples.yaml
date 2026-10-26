@@ -32,6 +32,7 @@ examples:
   title: 3年次に編入学した（本学での第1年次の在籍がない）
   student:
     year_of_study: 3
+    admission: transfer
     history: []
   expected:
     status: unknown

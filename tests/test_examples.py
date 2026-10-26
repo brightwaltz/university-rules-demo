@@ -154,7 +154,7 @@ def test_describe_student_uses_business_words(examples, base_graph):
     assert describe_student(by_id["FY-AI-05"], base_graph) == (
         "現在2年生。2025年度（1年次）に31単位を修得（必修Aを含む）。合計31単位。"
     )
-    assert describe_student(by_id["FY-AI-02"], base_graph) == "現在3年生。本学での修得の記録はない。"
+    assert describe_student(by_id["FY-AI-02"], base_graph) == "現在3年生（編入学）。本学での修得の記録はない。"
     for example in examples:
         text = describe_student(example, base_graph)
         assert "urdi:" not in text and "REQ-" not in text and "GEN-" not in text, example["id"]
@@ -230,3 +230,5 @@ def test_validation_rejects_unknown_courses_and_duplicate_ids(base_graph, exampl
         repository.validate([broken])
     with pytest.raises(ExampleValidationError, match="rule_type"):
         repository.validate([{**examples[0], "rule_type": "registration_deadline"}])
+    with pytest.raises(ExampleValidationError, match="admission"):
+        repository.validate([{**examples[0], "student": {**examples[0]["student"], "admission": "exchange"}}])

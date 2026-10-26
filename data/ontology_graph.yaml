@@ -146,6 +146,7 @@ hypernodes:
     note: 第3優先。どちらにも無い概念だけ。近い用語は close-match で明示する。
     members:
       - term/urd:yearOfStudy
+      - term/urd:admissionCategory
       - term/urd:earnedCredits
       - term/urd:registeredCredits
       - term/urd:annualCreditLimit
@@ -217,6 +218,7 @@ hypernodes:
       - concept/registered-course
       - concept/registration-action
       - concept/year-of-study
+      - concept/admission-category
       - concept/earned-credits
       - concept/completion-time
 
@@ -329,6 +331,7 @@ nodes:
   - {id: concept/registered-course, kind: concept, label: 履修登録済み科目}
   - {id: concept/registration-action, kind: concept, label: 履修登録という行為と状態}
   - {id: concept/year-of-study, kind: concept, label: 学年}
+  - {id: concept/admission-category, kind: concept, label: 入学区分}
   - {id: concept/earned-credits, kind: concept, label: 修得単位数の合計}
   - {id: concept/completion-time, kind: concept, label: 単位修得の時期}
   - {id: concept/legislation, kind: concept, label: 学則・履修規程}
@@ -397,6 +400,13 @@ nodes:
     label: 学年
     reading: "{1}の学年は{2}"
     comment: 学生が在籍している年次。schema.org・CCSO ともに該当用語が無い。
+  - id: term/urd:admissionCategory
+    kind: term
+    curie: "urd:admissionCategory"
+    term_kind: property
+    label: 入学区分
+    reading: "{1}の入学区分は{2}"
+    comment: 一般入学・編入学などの入学の区分。schema:DefinedTerm を値に取る。schema.org・CCSO ともに該当用語が無い。
   - id: term/urd:earnedCredits
     kind: term
     curie: "urd:earnedCredits"
@@ -897,6 +907,7 @@ edges:
   - {source: concept/registration-action, target: term/schema:RegisterAction, kind: uses}
   - {source: concept/registration-action, target: term/schema:actionStatus, kind: uses}
   - {source: concept/year-of-study, target: term/urd:yearOfStudy, kind: uses}
+  - {source: concept/admission-category, target: term/urd:admissionCategory, kind: uses}
   - {source: concept/earned-credits, target: term/urd:earnedCredits, kind: uses}
   - {source: term/urd:earnedCredits, target: term/ccso:hasCompleted, kind: derived-from,
      label: 修得科目をたどって}

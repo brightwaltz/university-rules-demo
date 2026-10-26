@@ -305,6 +305,11 @@
    "label": "学年"
   },
   {
+   "id": "concept/admission-category",
+   "kind": "concept",
+   "label": "入学区分"
+  },
+  {
    "id": "concept/earned-credits",
    "kind": "concept",
    "label": "修得単位数の合計"
@@ -653,6 +658,15 @@
    "term_kind": "property",
    "reading": "{1}の学年は{2}",
    "comment": "学生が在籍している年次。schema.org・CCSO ともに該当用語が無い。"
+  },
+  {
+   "id": "term/urd:admissionCategory",
+   "kind": "term",
+   "label": "入学区分",
+   "curie": "urd:admissionCategory",
+   "term_kind": "property",
+   "reading": "{1}の入学区分は{2}",
+   "comment": "一般入学・編入学などの入学の区分。schema:DefinedTerm を値に取る。schema.org・CCSO ともに該当用語が無い。"
   },
   {
    "id": "term/urd:earnedCredits",
@@ -1198,6 +1212,7 @@
    "label": "ローカル拡張層（urd:）",
    "members": [
     "term/urd:yearOfStudy",
+    "term/urd:admissionCategory",
     "term/urd:earnedCredits",
     "term/urd:registeredCredits",
     "term/urd:annualCreditLimit",
@@ -1296,6 +1311,7 @@
     "concept/registered-course",
     "concept/registration-action",
     "concept/year-of-study",
+    "concept/admission-category",
     "concept/earned-credits",
     "concept/completion-time"
    ],
@@ -1721,6 +1737,14 @@
    "kind": "uses",
    "derived": false,
    "reading": "学年 は urd:yearOfStudy で表す"
+  },
+  {
+   "id": "edge/uses/concept/admission-category->term/urd:admissionCategory",
+   "source": "concept/admission-category",
+   "target": "term/urd:admissionCategory",
+   "kind": "uses",
+   "derived": false,
+   "reading": "入学区分 は urd:admissionCategory で表す"
   },
   {
    "id": "edge/uses/concept/earned-credits->term/urd:earnedCredits",

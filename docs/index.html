@@ -185,6 +185,29 @@
       }
     },
     {
+      "@id": "urdi:terms/admission-category",
+      "@type": "schema:DefinedTermSet",
+      "schema:name": "入学区分"
+    },
+    {
+      "@id": "urdi:term/regular-admission",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "一般入学",
+      "schema:termCode": "REGULAR",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/admission-category"
+      }
+    },
+    {
+      "@id": "urdi:term/transfer-admission",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "編入学",
+      "schema:termCode": "TRANSFER",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/admission-category"
+      }
+    },
+    {
       "@id": "urdi:course/GEN-01",
       "@type": [
         "schema:Course",
@@ -1350,6 +1373,9 @@
         "@id": "urdi:program/engineering-2026"
       },
       "urd:yearOfStudy": 3,
+      "urd:admissionCategory": {
+        "@id": "urdi:term/regular-admission"
+      },
       "ccso:hasCompleted": [
         {
           "@id": "urdi:course/REQ-A"
@@ -1662,6 +1688,9 @@
         "@id": "urdi:program/engineering-2026"
       },
       "urd:yearOfStudy": 4,
+      "urd:admissionCategory": {
+        "@id": "urdi:term/regular-admission"
+      },
       "ccso:hasCompleted": [
         {
           "@id": "urdi:course/REQ-A"
@@ -2031,6 +2060,9 @@
         "@id": "urdi:program/engineering-2026"
       },
       "urd:yearOfStudy": 4,
+      "urd:admissionCategory": {
+        "@id": "urdi:term/regular-admission"
+      },
       "ccso:hasCompleted": [
         {
           "@id": "urdi:course/REQ-A"
@@ -2954,6 +2986,12 @@
    "reading": "{1}の学年は{2}",
    "variables": null
   },
+  "urd:admissionCategory": {
+   "id": "term/urd:admissionCategory",
+   "label": "入学区分",
+   "reading": "{1}の入学区分は{2}",
+   "variables": null
+  },
   "urd:earnedCredits": {
    "id": "term/urd:earnedCredits",
    "label": "修得単位数",
@@ -3297,6 +3335,14 @@
    "oloud": "（該当なし）"
   },
   {
+   "concept": "入学区分",
+   "concept_id": "concept/admission-category",
+   "demo": "urd:admissionCategory",
+   "schema_org": "（該当なし）",
+   "ccso": "（該当なし）",
+   "oloud": "（該当なし）"
+  },
+  {
    "concept": "修得単位数の合計",
    "concept_id": "concept/earned-credits",
    "demo": "urd:earnedCredits",
@@ -3373,6 +3419,11 @@
   "urd:yearOfStudy": {
    "label": "学年",
    "comment": "学生が在籍している年次。schema.org・CCSO ともに該当用語が無い。",
+   "close_match": []
+  },
+  "urd:admissionCategory": {
+   "label": "入学区分",
+   "comment": "一般入学・編入学などの入学の区分。schema:DefinedTerm を値に取る。schema.org・CCSO ともに該当用語が無い。",
    "close_match": []
   },
   "urd:earnedCredits": {

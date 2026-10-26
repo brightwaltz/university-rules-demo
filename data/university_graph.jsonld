@@ -109,6 +109,29 @@
       }
     },
     {
+      "@id": "urdi:terms/admission-category",
+      "@type": "schema:DefinedTermSet",
+      "schema:name": "入学区分"
+    },
+    {
+      "@id": "urdi:term/regular-admission",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "一般入学",
+      "schema:termCode": "REGULAR",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/admission-category"
+      }
+    },
+    {
+      "@id": "urdi:term/transfer-admission",
+      "@type": "schema:DefinedTerm",
+      "schema:name": "編入学",
+      "schema:termCode": "TRANSFER",
+      "schema:inDefinedTermSet": {
+        "@id": "urdi:terms/admission-category"
+      }
+    },
+    {
       "@id": "urdi:course/GEN-01",
       "@type": [
         "schema:Course",
@@ -1274,6 +1297,9 @@
         "@id": "urdi:program/engineering-2026"
       },
       "urd:yearOfStudy": 3,
+      "urd:admissionCategory": {
+        "@id": "urdi:term/regular-admission"
+      },
       "ccso:hasCompleted": [
         {
           "@id": "urdi:course/REQ-A"
@@ -1586,6 +1612,9 @@
         "@id": "urdi:program/engineering-2026"
       },
       "urd:yearOfStudy": 4,
+      "urd:admissionCategory": {
+        "@id": "urdi:term/regular-admission"
+      },
       "ccso:hasCompleted": [
         {
           "@id": "urdi:course/REQ-A"
@@ -1955,6 +1984,9 @@
         "@id": "urdi:program/engineering-2026"
       },
       "urd:yearOfStudy": 4,
+      "urd:admissionCategory": {
+        "@id": "urdi:term/regular-admission"
+      },
       "ccso:hasCompleted": [
         {
           "@id": "urdi:course/REQ-A"
