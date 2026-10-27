@@ -72,6 +72,13 @@ EXAMPLES_HEADER = (
 #: 卒業必修などの「必修科目」区分（describe_student で科目名を括弧に出す）
 REQUIRED_CATEGORY = "urdi:term/required"
 
+#: 例題の student.admission → 入学区分（urd:admissionCategory の値）。省略時は regular
+ADMISSION_CATEGORIES = {
+    "regular": "urdi:term/regular-admission",
+    "transfer": "urdi:term/transfer-admission",
+}
+DEFAULT_ADMISSION = "regular"
+
 #: 例題の履修登録は、基準日の学期（2026年度前期）の登録として置く
 REGISTRATION_ACADEMIC_YEAR = "2026"
 REGISTRATION_SEMESTER = "first"
@@ -131,7 +138,8 @@ def example_student_iri(example_id: str) -> str:
 def build_example_graph(example: dict[str, Any], base_graph: KnowledgeGraph) -> KnowledgeGraph:
     """base のナレッジグラフに、例題の学生と、その修得・履修登録の事実を足したグラフ。
 
-    - 学生ノード ``urdi:example/{id}/student``（schema:Person ＋ ccso:UndergraduateStudent）
+    - 学生ノード ``urdi:example/{id}/student``（schema:Person ＋ ccso:UndergraduateStudent）。
+      入学区分 urd:admissionCategory は必ず付ける（admission を省略したら一般入学）
     - history の各要素 → schema:AchieveAction（``urdi:example/{id}/achievement/{academic_year}``）
     - other_credits → 仮想科目 ``urdi:example/{id}/course/{academic_year}``（0 または省略なら作らない）
     - registration → ccso:hasRegistered（仮想科目 ``urdi:example/{id}/course/registered`` を含む）と
@@ -157,6 +165,8 @@ def build_example_graph(example: dict[str, Any], base_graph: KnowledgeGraph) -> 
         student["schema:affiliation"] = {"@id": provider}
     student["ccso:enrolledIn"] = {"@id": program_iri}
     student["urd:yearOfStudy"] = int(profile["year_of_study"])
+    admission = profile.get("admission", DEFAULT_ADMISSION)
+    student["urd:admissionCategory"] = {"@id": ADMISSION_CATEGORIES[str(admission)]}
 
     def virtual_course(suffix: str, credits: int) -> dict[str, Any]:
         return {
@@ -236,9 +246,11 @@ def describe_student(example: dict[str, Any], base_graph: KnowledgeGraph) -> str
     """例題の学生を業務語で説明する（CURIE や科目コードは出さない）。
 
     例「現在2年生。2025年度（1年次）に31単位を修得（必修Aを含む）。合計31単位。」
+    編入学の学生だけ「現在3年生（編入学）。」のように入学区分を添える。
     """
     profile = example["student"]
-    parts = [f"現在{int(profile['year_of_study'])}年生。"]
+    admission = "（編入学）" if profile.get("admission") == "transfer" else ""
+    parts = [f"現在{int(profile['year_of_study'])}年生{admission}。"]
     history = list(profile.get("history") or [])
     if not history:
         parts.append("本学での修得の記録はない。")
@@ -363,6 +375,8 @@ class ExampleRepository:
             fail("student がありません。")
         if not self._positive_int(profile.get("year_of_study")):
             fail("student.year_of_study は1以上の整数です。")
+        if profile.get("admission", DEFAULT_ADMISSION) not in ADMISSION_CATEGORIES:
+            fail(f"student.admission は {' / '.join(ADMISSION_CATEGORIES)} のいずれかです。")
         history = profile.get("history") or []
         if not isinstance(history, list):
             fail("student.history は一覧です。")

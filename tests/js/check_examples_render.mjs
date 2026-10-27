@@ -180,7 +180,7 @@ step("判断の入力（イベント経由）", () => {
   return probe("changedIds().join(', ')");
 });
 step("「正しくない」で正しい結論が未選択なら書き出さない", () => {
-  probe('setReview(EMBEDDED[1].id, { verdict: "disagree" })');
+  probe('setReview(EMBEDDED[1].id, { verdict: "disagree", correct_status: null })');
   const result = probe("exportReviews()");
   expect(result === null, "書き出されてしまいました");
   expect(byId.get("global-status").innerHTML.includes(probe("EMBEDDED[1].id")), "未選択の例題が示されていません");
